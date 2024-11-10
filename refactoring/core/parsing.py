@@ -9,12 +9,13 @@ class TreeDetail:
     def __init__(self, nodes, metric = 0.0):
         self.nodes = nodes
         self.metric = metric
+        self.refactored = False
 
 
-def parse_library(library_name):
+def parse_library(library_path):
     library_tree_dict = {}
 
-    for root, dirs, files in os.walk(f"../target_libraries/{library_name}"):
+    for root, dirs, files in os.walk(library_path):
         for file in files:
             if file.endswith('.py') and file not in IGNORE_PYTHON_FILE:
                 file_path = f"{root}/{file}"
@@ -37,5 +38,5 @@ def parse_library(library_name):
 if __name__ == '__main__':
     # refactoring/target_library_zips 폴더에 있는 pyflakes.zip 파일을 refactoring/target_libraries 경로에 압축 풀기
     # -> refactoring/target_libraries/pyflakes 경로가 생기도록
-    result = parse_library("pyflakes")
+    result = parse_library("../target_libraries/pyflakes")
     pprint(result)
