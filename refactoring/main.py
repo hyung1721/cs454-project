@@ -17,6 +17,7 @@ if __name__ == '__main__':
     refactoring_count = 0
 
     target_class_location = choice(classes)
+    print(target_class_location)
     _refactoring = choice(REFACTORING_TYPES)
 
     refactor = _refactoring(base=parsed_library, location=target_class_location)
@@ -24,8 +25,9 @@ if __name__ == '__main__':
     if refactor.is_possible():
         refactor.do()
 
-        for node in list(refactor.result.values())[0].nodes:
-            print(ast.unparse(node))
+        for item in refactor.result.values():
+            for node in item.nodes:
+                print(ast.unparse(node))
 
         # TODO: metric 계산 & metric이 오르지 않으면 undo
         # refactor.undo()

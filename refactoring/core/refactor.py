@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from random import choice
 
 from refactoring.core.parsing import TreeDetail
+from refactoring.utils.ast_utils import find_normal_methods, MethodRenamer, MethodOccurrenceChecker
 
 
 class Refactor(ABC):
@@ -18,6 +19,13 @@ class Refactor(ABC):
             raise Exception(f"{target_class_node} is not an instance of ast.ClassDef")
         self.target_class_node = target_class_node
 
+        self.subclasses = []
+        for tree_detail in self.result.values():
+            for node in tree_detail.nodes:
+                if isinstance(node, ast.ClassDef):
+                    if any(isinstance(base, ast.Name) and base.id == self.target_class_node.name for base in node.bases):
+                        self.subclasses.append(node)
+
     @abstractmethod
     def is_possible(self):
         ...
@@ -26,23 +34,15 @@ class Refactor(ABC):
     def do(self):
         ...
 
-    @abstractmethod
     def undo(self):
-        ...
+        self.result = self.base
 
 
 # Method Level Refactorings
 class PushDownMethod(Refactor):
     def __init__(self, base: dict[str, TreeDetail], location):
         super().__init__(base, location)
-        self.methods = [item for item in self.target_class_node.body
-                        if isinstance(item, ast.FunctionDef) and not item.name.startswith("_")]
-
-        self.subclasses = []
-        for node in self.result[self.file_path].nodes:
-            if isinstance(node, ast.ClassDef):
-                if any(isinstance(base, ast.Name) and base.id == self.target_class_node.name for base in node.bases):
-                    self.subclasses.append(node)
+        self.methods = find_normal_methods(self.target_class_node.body)
 
     def is_possible(self):
         return len(self.methods) >= 1 and len(self.subclasses) >= 1
@@ -56,29 +56,28 @@ class PushDownMethod(Refactor):
 
         # add method to subclasses of target class
         for node in self.subclasses:
-            # TODO: method를 사용하는 subclass에만 추가?
-            new_method = copy.deepcopy(method_node)
-            node.body.append(new_method)
+            # find the occurrence of method
+            checker = MethodOccurrenceChecker(method_name=method_node.name)
+            checker.visit(node)
 
-        # 다른 파일에서 target class를 상속하는 경우 고려해야함
+            if checker.occurred and not checker.overridden:
+                new_method = copy.deepcopy(method_node)
+                node.body.append(new_method)
 
         self.result[self.file_path].refactored = True
-
-    def undo(self):
-        self.result = self.base
 
 
 class PullUpMethod(Refactor):
     def __init__(self, base: dict[str, TreeDetail], location):
         super().__init__(base, location)
-        self.methods = [item for item in self.target_class_node.body
-                        if isinstance(item, ast.FunctionDef) and not item.name.startswith("_")]
+        self.methods = find_normal_methods(self.target_class_node.body)
 
         self.superclasses = []
         superclass_names = [base.id for base in self.target_class_node.bases if isinstance(base, ast.Name)]
-        for node in self.result[self.file_path].nodes:
-            if isinstance(node, ast.ClassDef) and node.name in superclass_names:
-                self.superclasses.append(node)
+        for tree_detail in self.result.values():
+            for node in tree_detail.nodes:
+                if isinstance(node, ast.ClassDef) and node.name in superclass_names:
+                    self.superclasses.append(node)
 
     def is_possible(self):
         return len(self.methods) >= 1 and len(self.superclasses) >= 1
@@ -92,38 +91,61 @@ class PullUpMethod(Refactor):
 
         # add method to subclasses of target class
         for node in self.superclasses:
-            # TODO: 모든 superclass에 추가?
             new_method = copy.deepcopy(method_node)
             node.body.append(new_method)
 
-        # 다른 파일에 있는 class를 상속하는 경우 고려해야함 -> import문을 통해서 location을 알아내자
-
         self.result[self.file_path].refactored = True
 
-    def undo(self):
-        self.result = self.base
 
-
+# foo() -> public, _foo() -> protected, __foo() -> private
+# Increase Accessibility: foo() -> _foo() or _foo() -> __foo()
 class IncreaseMethodAccess(Refactor):
+    def __init__(self, base: dict[str, TreeDetail], location):
+        super().__init__(base, location)
+        self.public_or_protected_methods = [
+            method for method in find_normal_methods(self.target_class_node.body)
+            if not method.name.startswith("__")
+        ]
+
     def is_possible(self):
-        return False
+        return len(self.public_or_protected_methods) >= 1
 
     def do(self):
-        pass
+        method_node = choice(self.public_or_protected_methods)
 
-    def undo(self):
-        pass
+        old_name = method_node.name
+        new_name = "_" + method_node.name
+        renamer = MethodRenamer(old_name=old_name, new_name=new_name)
+
+        # Change the all occurrence of method in classes, including subclasses
+        classes = [self.target_class_node] + self.subclasses
+        for item in classes:
+            renamer.visit(item)
 
 
+# Decrease Accessibility: _foo() -> foo() or __foo() -> _foo()
 class DecreaseMethodAccess(Refactor):
+    def __init__(self, base: dict[str, TreeDetail], location):
+        super().__init__(base, location)
+        self.protected_or_private_methods = [
+            method for method in find_normal_methods(self.target_class_node.body)
+            if method.name.startswith("_")
+        ]
+
     def is_possible(self):
-        return False
+        return len(self.protected_or_private_methods) >= 1
 
     def do(self):
-        pass
+        method_node = choice(self.protected_or_private_methods)
 
-    def undo(self):
-        pass
+        old_name = method_node.name
+        new_name = method_node.name[1:]  # remove first underscore
+        renamer = MethodRenamer(old_name=old_name, new_name=new_name)
+
+        # Change the all occurrence of method in classes, including subclasses
+        classes = [self.target_class_node] + self.subclasses
+        for item in classes:
+            renamer.visit(item)
 
 
 # Field Level Refactorings
@@ -134,9 +156,6 @@ class PushDownField(Refactor):
     def do(self):
         pass
 
-    def undo(self):
-        pass
-
 
 class PullUpField(Refactor):
     def is_possible(self):
@@ -145,17 +164,12 @@ class PullUpField(Refactor):
     def do(self):
         pass
 
-    def undo(self):
-        pass
 
 class IncreaseFieldAccess(Refactor):
     def is_possible(self):
         return False
 
     def do(self):
-        pass
-
-    def undo(self):
         pass
 
 
@@ -166,11 +180,14 @@ class DecreaseFieldAccess(Refactor):
     def do(self):
         pass
 
-    def undo(self):
-        pass
-
 
 REFACTORING_TYPES = [
-    PushDownMethod, PullUpMethod, IncreaseMethodAccess, DecreaseMethodAccess,
-    PushDownField, PullUpField, IncreaseFieldAccess, DecreaseFieldAccess
+    PushDownMethod,
+    # PullUpMethod,
+    # IncreaseMethodAccess,
+    # DecreaseMethodAccess,
+    # PushDownField,
+    # PullUpField,
+    # IncreaseFieldAccess,
+    # DecreaseFieldAccess
 ]
