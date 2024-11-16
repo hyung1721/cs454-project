@@ -3,8 +3,10 @@ import copy
 from abc import ABC, abstractmethod
 from random import choice
 
-from core.parsing import TreeDetail
-from utils.ast_utils import find_normal_methods, find_instance_fields, MethodRenamer, MethodOccurrenceChecker, InstanceFieldOccurrenceChecker
+from refactoring.core.parsing import TreeDetail
+from refactoring.utils.ast_utils import find_normal_methods, find_instance_fields, MethodRenamer, \
+    MethodOccurrenceChecker, InstanceFieldOccurrenceChecker, InitMethodInjector, SelfMethodOccurrenceReplacer, \
+    is_direct_self_attr, SelfAttributeOccurrenceReplacer
 
 
 class Refactor(ABC):
@@ -19,10 +21,12 @@ class Refactor(ABC):
             raise Exception(f"{target_class_node} is not an instance of ast.ClassDef")
         self.target_class_node = target_class_node
 
+        self.class_names = []
         self.subclasses = []
         for tree_detail in self.result.values():
             for node in tree_detail.nodes:
                 if isinstance(node, ast.ClassDef):
+                    self.class_names.append(node.name)
                     if any(isinstance(base, ast.Name) and base.id == self.target_class_node.name for base in node.bases):
                         self.subclasses.append(node)
 
@@ -546,13 +550,171 @@ class DecreaseFieldAccess(Refactor):
        self.result[self.file_path].refactored = refactored
 
 
+## Class Level Refactorings
+class ExtractHierarchy(Refactor):
+
+    def is_possible(self):
+        pass
+
+    def do(self):
+        pass
+
+
+class CollapseHierarchy(Refactor):
+
+    def is_possible(self):
+        pass
+
+    def do(self):
+        pass
+
+
+class MakeSuperclassAbstract(Refactor):
+
+    def is_possible(self):
+        pass
+
+    def do(self):
+        pass
+
+
+class MakeSuperclassConcrete(Refactor):
+
+    def is_possible(self):
+        pass
+
+    def do(self):
+        pass
+
+
+class ReplaceInheritanceWithDelegation(Refactor):
+    def __init__(self, base: dict[str, TreeDetail], location):
+        super().__init__(base, location)
+
+        self.methods = find_normal_methods(self.target_class_node.body)
+
+        self.superclasses = []
+        superclass_names = [base.id for base in self.target_class_node.bases if isinstance(base, ast.Name)]
+        for tree_detail in self.result.values():
+            for node in tree_detail.nodes:
+                if isinstance(node, ast.ClassDef) and node.name in superclass_names:
+                    self.superclasses.append(node)
+
+    def is_possible(self):
+        return len(self.superclasses) >= 1
+
+    def do(self):
+        superclass = choice(self.superclasses)
+        delegate_attribute_name = f'riwd_{superclass.name}'
+
+        # create delegation
+        assignment_node = ast.Assign(
+            targets=[
+                ast.Attribute(
+                    value=ast.Name(id='self', ctx=ast.Load()),
+                    attr=delegate_attribute_name,
+                    ctx=ast.Store()
+                )
+            ],
+            value=ast.Call(
+                func=ast.Name(id=superclass.name,ctx=ast.Load()),
+                args=[],
+                keywords=[]
+            )
+        )
+
+        init_method_injector = InitMethodInjector(content=assignment_node)
+        init_method_injector.visit(self.target_class_node)
+
+        # delete inheritance
+        superclass_index = -1
+        for idx, base in enumerate(self.superclasses):
+            if base.name == superclass.name:
+                superclass_index = idx
+                break
+        self.target_class_node.bases.pop(superclass_index)
+
+        superclass_methods = find_normal_methods(superclass.body)
+        methods_to_be_replaced = []
+
+        target_class_method_names = [method.name for method in self.methods]
+
+        for method in superclass_methods:
+            if not (method.name in target_class_method_names):
+                methods_to_be_replaced.append(method.name)
+
+        replacer = SelfMethodOccurrenceReplacer(
+            methods_to_be_replaced=methods_to_be_replaced,
+            attr_name=delegate_attribute_name
+        )
+        replacer.visit(self.target_class_node)
+
+
+class ReplaceDelegationWithInheritance(Refactor):
+    def __init__(self, base: dict[str, TreeDetail], location):
+        super().__init__(base, location)
+
+        self.delegation_infos = []  # (idx, self attr name, class name)
+        self.target_class_init_method = None
+        for node in self.target_class_node.body:
+            if isinstance(node, ast.FunctionDef) and node.name == "__init__":
+                self.target_class_init_method = node
+                break
+
+        if self.target_class_init_method is not None:
+            for idx, stmt in enumerate(self.target_class_init_method.body):
+                if isinstance(stmt, ast.Assign) and is_direct_self_attr(stmt.targets[0]) and isinstance(stmt.value, ast.Call):
+                    if isinstance(stmt.value.func, ast.Name):
+                        # case 1: self.a = A()
+                        # check A is a real class
+                        if stmt.value.func.id in self.class_names:
+                            self.delegation_infos.append((idx, stmt.targets[0].attr, stmt.value.func.id))
+                    elif isinstance(stmt.value.func, ast.Attribute):
+                        # case 2: self.a = module.A()
+                        if stmt.value.func.attr in self.class_names:
+                            self.delegation_infos.append((idx, stmt.targets[0].attr, stmt.value.func.attr))
+                    else:
+                        raise Exception(f"stmt.value.func with {type(stmt.value.func)} is not handled.")
+
+
+    def is_possible(self):
+        return len(self.delegation_infos) >= 1
+
+    def do(self):
+        idx, attr, class_name = choice(self.delegation_infos)
+
+        # delegation 제거
+        if self.target_class_init_method:
+            self.target_class_init_method.body.pop(idx)
+            if len(self.target_class_init_method.body) == 0:
+                self.target_class_init_method.body.append(ast.Pass())
+
+        # inheritance 추가
+        self.target_class_node.bases.append(
+            ast.Name(
+                id=class_name,
+                ctx=ast.Load()
+            )
+        )
+
+        # occurrence 찾아서 self.으로 변경
+        replacer = SelfAttributeOccurrenceReplacer(attr_name=attr)
+        replacer.visit(self.target_class_node)
+
+
 REFACTORING_TYPES = [
-    PushDownMethod,
+    # PushDownMethod,
     # PullUpMethod,
     # IncreaseMethodAccess,
     # DecreaseMethodAccess,
-    PushDownField,
-    PullUpField,
-    IncreaseFieldAccess,
-    DecreaseFieldAccess
+    # PushDownField,
+    # PullUpField,
+    # IncreaseFieldAccess,
+    # DecreaseFieldAccess,
+    # ExtractHierarchy,
+    # CollapseHierarchy,
+    # MakeSuperclassAbstract,
+    # MakeSuperclassConcrete,
+    # ReplaceInheritanceWithDelegation,
+    ReplaceDelegationWithInheritance,
 ]
