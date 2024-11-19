@@ -6,7 +6,7 @@ from random import choice
 from refactoring.core.parsing import TreeDetail
 from refactoring.utils.ast_utils import find_normal_methods, find_instance_fields, MethodRenamer, \
     MethodOccurrenceChecker, InstanceFieldOccurrenceChecker, InitMethodInjector, SelfMethodOccurrenceReplacer, \
-    is_direct_self_attr, SelfAttributeOccurrenceReplacer
+    is_direct_self_attr, SelfAttributeOccurrenceReplacer, check_inherit_abc, AbstractMethodDecoratorChecker
 
 
 class Refactor(ABC):
@@ -570,21 +570,56 @@ class CollapseHierarchy(Refactor):
 
 
 class MakeSuperclassAbstract(Refactor):
+    def __init__(self, base: dict[str, TreeDetail], location):
+        super().__init__(base, location)
+
+        self.non_abstract_superclasses = []
+        superclass_names = [base.id for base in self.target_class_node.bases if isinstance(base, ast.Name)]
+        for tree_detail in self.result.values():
+            for node in tree_detail.nodes:
+                if isinstance(node, ast.ClassDef) and node.name in superclass_names and not check_inherit_abc(node):
+                    self.non_abstract_superclasses.append(node)
 
     def is_possible(self):
-        pass
+        return len(self.non_abstract_superclasses) >= 1
 
     def do(self):
-        pass
+        superclass = choice(self.non_abstract_superclasses)
+
+        checker = AbstractMethodDecoratorChecker()
+        checker.visit(superclass)
+
+        if checker.found:
+            superclass.bases.append(
+                ast.Name(
+                    id="ABC",
+                    ctx=ast.Load()
+                )
+            )
 
 
 class MakeSuperclassConcrete(Refactor):
+    def __init__(self, base: dict[str, TreeDetail], location):
+        super().__init__(base, location)
+
+        self.abstract_superclasses = []
+        superclass_names = [base.id for base in self.target_class_node.bases if isinstance(base, ast.Name)]
+        for tree_detail in self.result.values():
+            for node in tree_detail.nodes:
+                if isinstance(node, ast.ClassDef) and node.name in superclass_names and check_inherit_abc(node):
+                    self.abstract_superclasses.append(node)
 
     def is_possible(self):
-        pass
+        return len(self.abstract_superclasses) >= 1
 
     def do(self):
-        pass
+        superclass = choice(self.abstract_superclasses)
+
+        checker = AbstractMethodDecoratorChecker()
+        checker.visit(superclass)
+
+        if not checker.found:
+            check_inherit_abc(superclass, remove_abc=True)
 
 
 class ReplaceInheritanceWithDelegation(Refactor):
@@ -713,8 +748,8 @@ REFACTORING_TYPES = [
     # DecreaseFieldAccess,
     # ExtractHierarchy,
     # CollapseHierarchy,
-    # MakeSuperclassAbstract,
+    MakeSuperclassAbstract,
     # MakeSuperclassConcrete,
     # ReplaceInheritanceWithDelegation,
-    ReplaceDelegationWithInheritance,
+    # ReplaceDelegationWithInheritance,
 ]

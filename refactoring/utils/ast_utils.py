@@ -29,6 +29,45 @@ def is_direct_self_attr(node):
     return isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id == "self"
 
 
+def check_inherit_abc(node: ast.ClassDef, remove_abc: bool = False):
+    result = False
+
+    abc_base_idx = -1
+    for base_idx, base in enumerate(node.bases):
+        if isinstance(base, ast.Name) and base.id == "ABC":
+            abc_base_idx = base_idx
+            result = True
+            break
+
+        if isinstance(base, ast.Attribute):
+            if isinstance(base.value, ast.Name) and base.value.id == "abc" and base.attr == "ABC":
+                abc_base_idx = base_idx
+                result = True
+                break
+
+    abc_keyword_idx = -1
+    for keyword_idx, keyword in enumerate(node.keywords):
+        if keyword.arg == "metaclass":
+            if isinstance(keyword.value, ast.Name) and keyword.value.id == "ABCMeta":
+                abc_keyword_idx = keyword_idx
+                result = True
+                break
+
+            if isinstance(keyword.value, ast.Attribute):
+                if isinstance(keyword.value.value, ast.Name) and keyword.value.value.id == "abc" and keyword.value.attr == "ABCMeta":
+                    abc_keyword_idx = keyword_idx
+                    result = True
+                    break
+
+    if remove_abc:
+        if abc_base_idx != -1:
+            node.bases.pop(abc_base_idx)
+        if abc_keyword_idx != -1:
+            node.keywords.pop(abc_keyword_idx)
+
+    return result
+
+
 class MethodRenamer(ast.NodeTransformer):
     def __init__(self, old_name: str, new_name: str):
         self.old_name = old_name
@@ -158,3 +197,21 @@ class SelfAttributeOccurrenceReplacer(ast.NodeTransformer):
             if node.value.id == "self" and node.attr == self.attr_name:
                 node = ast.Name(id="self", ctx=ast.Load)
         return self.generic_visit(node)
+
+
+class AbstractMethodDecoratorChecker(ast.NodeVisitor):
+    def __init__(self):
+        self.found = False
+
+    def visit_FunctionDef(self, node):
+        for decorator in node.decorator_list:
+            if isinstance(decorator, ast.Name) and decorator.id == "abstractmethod":
+                self.found = True
+                break
+
+            if isinstance(decorator, ast.Attribute):
+                if isinstance(decorator.value, ast.Name) and decorator.value.id == "abc" and decorator.attr == "abstractmethod":
+                    self.found = True
+                    break
+
+        self.generic_visit(node)
