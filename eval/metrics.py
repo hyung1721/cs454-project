@@ -203,10 +203,5 @@ class ExampleClass2(object):
 
     # 테스트를 위해, input 과 동일한 List[ast.ClassDef] 형식으로 변환
     list_of_cls = parser.get_module_classes(module_ast_node)
-    print(f'LSCC  : {cohesion_metric(list_of_cls, metric_type="LSCC")}')
-    print(f'TCC   : {cohesion_metric(list_of_cls, metric_type="TCC")}')
-    print(f'CC    : {cohesion_metric(list_of_cls, metric_type="CC")}')
-    print(f'SCOM  : {cohesion_metric(list_of_cls, metric_type="SCOM")}')
-    print(f'LCOM5 : {cohesion_metric(list_of_cls, metric_type="LCOM5")}')
-
-    
+    for metric_type in MetricType:
+        print(f'{metric_type} : {cohesion_metric(list_of_cls, metric_type)}')
