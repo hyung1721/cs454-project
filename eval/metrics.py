@@ -1,26 +1,46 @@
 from class_parser import ClassParser, cau, intersection_of_I, union_of_I, create_structure
 from itertools import combinations
-
-ALLOWED_METRIC = ["LSCC", "TCC", "CC", "SCOM", "LCOM5"]
+from MetricType import MetricType
 
 class _Metric:
-    def __init__(self, metric_type):
+    def __init__(self, metric_type: MetricType):
         self.metric_type = metric_type
-    
-    def value(self, cls:ClassParser):
-        if self.metric_type == "LSCC":
+
+    def value(self, cls: ClassParser):
+        if self.metric_type == MetricType.LSCC:
             return self._LSCC(cls)
-        elif self.metric_type == "TCC":
+        elif self.metric_type == MetricType.TCC:
             return self._TCC(cls)
-        elif self.metric_type == "CC":
+        elif self.metric_type == MetricType.CC:
             return self._CC(cls)
-        elif self.metric_type == "SCOM":
+        elif self.metric_type == MetricType.SCOM:
             return self._SCOM(cls)
-        elif self.metric_type == "LCOM5":
+        elif self.metric_type == MetricType.LCOM5:
             return self._LCOM5(cls)
+        elif self.metric_type == MetricType.CBO:
+            return self._CBO(cls)
+        elif self.metric_type == MetricType.RFC:
+            return self._RFC(cls)
+        elif self.metric_type == MetricType.FANIN:
+            return self._FanIn(cls)
+        elif self.metric_type == MetricType.FANOUT:
+            return self._FanOut(cls)
+        elif self.metric_type == MetricType.CA:
+            return self._Ca(cls)
         else:
-            assert False
+            raise ValueError(f"Unsupported metric type: {self.metric_type}")
         
+    def evaluate_improvement(self, before_metrics, after_metrics) -> str:
+        lower_is_better = {MetricType.CBO, MetricType.FANOUT, MetricType.CA}
+        higher_is_better = {MetricType.LSCC, MetricType.TCC, MetricType.CC, MetricType.SCOM, MetricType.LCOM5, MetricType.RFC, MetricType.FANIN}
+
+        if self.metric_type in lower_is_better:
+            return True if after_metrics < before_metrics else False
+        elif self.metric_type in higher_is_better:
+            return True if after_metrics > before_metrics else False
+        else:
+            raise ValueError(f"Unsupported metric type: {self.metric_type}")
+
     def _LSCC(self, cls:ClassParser):
         l, k = cls.l(), cls.k()
         if l == 0 and k > 1:
@@ -86,7 +106,51 @@ class _Metric:
                     cnt += 1
             sigma += cnt
         return (k - sigma / l) / (k - 1)
-            
+    
+    def _CBO(self, cls: ClassParser):
+        count = 0
+        methods = cls.M()
+        for method_name, method in methods.items():
+            for var in method['variables']:
+                if '.' in var and not var.startswith(cls.cls_structure['name']):
+                    count += 1
+        return count
+
+    def _RFC(self, cls: ClassParser):
+        methods = cls.M()
+        rfc_count = 0
+        for method_name, method in methods.items():
+            if not method_name.startswith('_') or method_name.startswith('__') and method_name.endswith('__'):
+                # Count public methods and special methods (e.g., __init__)
+                rfc_count += 1
+                for var in method['variables']:
+                    if '.' in var:  # Assume this means a method call to another class
+                        rfc_count += 1
+        return rfc_count
+
+    def _FanIn(self, cls: ClassParser):
+        fan_in_count = 0
+        # TODO: CBO에 특정 모듈을 넣도록 하면 됨. input도 바뀌어야 함 - 20241120 SDG 
+        return fan_in_count
+
+    def _FanOut(self, cls: ClassParser):
+        fan_out_count = 0
+        # TODO: RFC에 특정 모듈을 넣도록 하면 됨. input도 바뀌어야 함 - 20241120 SDG
+        return fan_out_count
+
+    def _Ca(self, cls_list):
+        ca_count = 0
+        current_class_name = cls_list.cls_structure['name']
+        for other_cls in cls_list:
+            if other_cls == cls_list:
+                continue
+            for method in other_cls.M().values():
+                for var in method['variables']:
+                    if current_class_name in var:
+                        ca_count += 1
+                        break
+        return ca_count
+
 def weight_of(cls:ClassParser):
     l, k = cls.l(), cls.k()
     return l * k * (k-1)
