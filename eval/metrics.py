@@ -110,7 +110,7 @@ class _Metric:
     def _CBO(self, cls: ClassParser):
         count = 0
         methods = cls.M()
-        for method_name, method in methods.items():
+        for _, method in methods.items():
             for var in method['variables']:
                 if '.' in var and not var.startswith(cls.cls_structure['name']):
                     count += 1
@@ -156,7 +156,7 @@ def weight_of(cls:ClassParser):
     return l * k * (k-1)
         
 def cohesion_metric(ast_cls_list, metric_type = "LSCC"):
-    if metric_type not in ALLOWED_METRIC:
+    if metric_type not in ALLOWED_METRIC: # ALLWED_METRIC?? - 20241120 신동환
         print(f"[metrics.py] Not allowed metric type : {metric_type}")
         return None
     metric = _Metric(metric_type)
