@@ -2,11 +2,14 @@ import ast
 import copy
 from abc import ABC, abstractmethod
 from random import choice
+from itertools import combinations
+
 
 from refactoring.core.parsing import TreeDetail
 from refactoring.utils.ast_utils import find_normal_methods, find_instance_fields, MethodRenamer, \
     MethodOccurrenceChecker, InstanceFieldOccurrenceChecker, InitMethodInjector, SelfMethodOccurrenceReplacer, \
-    is_direct_self_attr, SelfAttributeOccurrenceReplacer, check_inherit_abc, AbstractMethodDecoratorChecker
+    is_direct_self_attr, SelfAttributeOccurrenceReplacer, check_inherit_abc, AbstractMethodDecoratorChecker, \
+    is_super_init_call
 
 
 class Refactor(ABC):
@@ -169,34 +172,38 @@ class PushDownField(Refactor):
     def is_possible(self):
         if not (len(self.fields) >= 1 and len(self.subclasses) >= 1):
             return False
-        
+
         # Check each field
         for field in self.fields:
             field_name = field.targets[0].attr
-            if self.is_field_used_by_parent(field_name):
-                print(f"Field '{field_name}' is used by parent class methods")
-                return False
-                
-        return True
+            if not self.is_field_used_by_parent(field_name):
+                return True
+        print(f"All fields used by parent method")
+        return False
 
     def do(self):
         refactor_occurred = False
-        field_node = choice(self.fields)
+        pushable_fields = []
+        for field in self.fields:
+            field_name = field.targets[0].attr
+            if not self.is_field_used_by_parent(field_name):
+                pushable_fields.append(field)
+
+        field_node = choice(pushable_fields)
         field_name = field_node.targets[0].attr  # get name from self.field_name
 
-        
         # Find __init__ method
         init_idx = None
         for idx, node in enumerate(self.target_class_node.body):
             if isinstance(node, ast.FunctionDef) and node.name == "__init__":
                 init_idx = idx
                 break
-        
+
         # Add to subclasses that use but don't define it
         for node in self.subclasses:
             checker = InstanceFieldOccurrenceChecker(field_name=field_name)
             checker.visit(node)
-            
+
             if checker.occurred and not checker.defined:
                 refactor_occurred = True
                 # Find or create __init__ in subclass
@@ -205,7 +212,7 @@ class PushDownField(Refactor):
                     if isinstance(child, ast.FunctionDef) and child.name == "__init__":
                         init_method = child
                         break
-                
+
                 if init_method is None:
                     # Create new __init__ with super().__init__() call
                     init_method = ast.FunctionDef(
@@ -240,7 +247,7 @@ class PushDownField(Refactor):
                         end_col_offset=0
                     )
                     node.body.insert(0, init_method)
-                
+
                 # Add field assignment after super().__init__()
                 new_field = copy.deepcopy(field_node)
                 init_method.body.insert(1, new_field)
@@ -551,22 +558,321 @@ class DecreaseFieldAccess(Refactor):
 
 
 ## Class Level Refactorings
+# Just accounts for simple field assignments and not all kinds of initializations
+# 1. Is it okay to just do pass if there are no common methods and fields? Shouldn't we do super init?
 class ExtractHierarchy(Refactor):
+    def __init__(self, base: dict[str, TreeDetail], location):
+        super().__init__(base, location)
+        # Initialize dictionaries to store methods and fields for each subclass
+        self.subclass_methods = {}  # class_node -> list of method nodes (excluding __init__)
+        self.subclass_fields = {}  # class_node -> list of field assignments
+
+        for node in self.subclasses:
+            # Collect methods excluding __init__
+            methods = [n for n in node.body if isinstance(n, ast.FunctionDef) and n.name != '__init__']
+            self.subclass_methods[node] = methods
+            # Collect instance fields
+            self.subclass_fields[node] = find_instance_fields(node.body)
+
+    def count_common_features(self, class1: ast.ClassDef, class2: ast.ClassDef) -> tuple[int, list, list]:
+        """Count common methods and fields between two classes."""
+        # Get methods from both classes
+        methods1 = {m.name: m for m in self.subclass_methods[class1]}
+        methods2 = {m.name: m for m in self.subclass_methods[class2]}
+        common_methods = []
+
+        # Compare methods with the same name for identical bodies
+        for name in methods1:
+            if name in methods2:
+                if ast.dump(methods1[name]) == ast.dump(methods2[name]):
+                    common_methods.append(methods1[name])
+
+        # Get fields from both classes
+        fields1 = {self.get_field_info(f)[0]: f for f in self.subclass_fields[class1]}
+        fields2 = {self.get_field_info(f)[0]: f for f in self.subclass_fields[class2]}
+        common_fields = []
+
+        # Compare fields with the same name and value
+        for name in set(fields1.keys()) & set(fields2.keys()):
+            if self.get_field_info(fields1[name])[1] == self.get_field_info(fields2[name])[1]:
+                common_fields.append(fields1[name])
+
+        # Total common features
+        total_common_features = len(common_methods) + len(common_fields)
+        return total_common_features, common_methods, common_fields
+
+    def get_field_info(self, field_node: ast.Assign) -> tuple[str, str]:
+        """Extract field name and value from an assignment node."""
+        field_name = field_node.targets[0].attr
+        field_value = ast.unparse(field_node.value)
+        return field_name, field_value
+
+    def find_best_subclass_group(self) -> tuple[set[ast.ClassDef], list[ast.FunctionDef], list[ast.Assign]]:
+        """Identify the largest group of subclasses sharing common features."""
+        if len(self.subclasses) < 2:
+            return set(), [], []
+
+        # Initialize variables to track the best group
+        best_score = -1
+        best_pair = None
+        best_methods = []
+        best_fields = []
+
+        # Compare all pairs to find the best initial pair
+        for c1, c2 in combinations(self.subclasses, 2):
+            score, methods, fields = self.count_common_features(c1, c2)
+            if score > best_score:
+                best_score = score
+                best_pair = (c1, c2)
+                best_methods = methods
+                best_fields = fields
+
+        if not best_pair:
+            return set(), [], []
+
+        # Start building the group with the best pair
+        best_group = set(best_pair)
+        current_methods = best_methods
+        current_fields = best_fields
+
+        # Try adding more classes to the group
+        for cls in set(self.subclasses) - best_group:
+            # Check if the class shares all current common methods
+            methods_in_cls = {m.name: m for m in self.subclass_methods[cls]}
+            shares_all_methods = all(
+                cm.name in methods_in_cls and ast.dump(cm) == ast.dump(methods_in_cls[cm.name])
+                for cm in current_methods
+            )
+
+            # Check if the class shares all current common fields
+            fields_in_cls = {self.get_field_info(f)[0]: f for f in self.subclass_fields[cls]}
+            shares_all_fields = all(
+                field_name in fields_in_cls and
+                field_value == self.get_field_info(fields_in_cls[field_name])[1]
+                for field_name, field_value in (self.get_field_info(cf) for cf in current_fields)
+            )
+
+            # Add class to the group if it shares all common features
+            if shares_all_methods and shares_all_fields:
+                best_group.add(cls)
+
+        return best_group, current_methods, current_fields
+
+    def create_super_init_call(self) -> ast.Expr:
+        """Create a super().__init__() call expression."""
+        return ast.Expr(
+            value=ast.Call(
+                func=ast.Attribute(
+                    value=ast.Call(
+                        func=ast.Name(id='super', ctx=ast.Load()),
+                        args=[],
+                        keywords=[]
+                    ),
+                    attr='__init__',
+                    ctx=ast.Load()
+                ),
+                args=[],
+                keywords=[]
+            )
+        )
+
+    def create_new_init_method(self, fields: list[ast.Assign]) -> ast.FunctionDef:
+        """Create a new __init__ method with super().__init__() and field assignments."""
+        return ast.FunctionDef(
+            name='__init__',
+            args=ast.arguments(
+                posonlyargs=[],
+                args=[ast.arg(arg='self')],
+                kwonlyargs=[],
+                kw_defaults=[],
+                defaults=[]
+            ),
+            body=[self.create_super_init_call()] + fields,
+            decorator_list=[]
+        )
+
+    def create_new_class(self, name: str, methods: list[ast.FunctionDef], fields: list[ast.Assign]) -> ast.ClassDef:
+        """Create a new class with the given methods and fields."""
+        body = methods.copy()
+        if fields:
+            init_method = self.create_new_init_method(fields)
+            body.insert(0, init_method)
+        elif not body:
+            body = [ast.Pass()]
+
+        return ast.ClassDef(
+            name=name,
+            bases=[ast.Name(id=self.target_class_node.name, ctx=ast.Load())],
+            keywords=[],
+            body=body,
+            decorator_list=[]
+        )
+
+    def ensure_subclass_init_calls_super(self, subclass: ast.ClassDef):
+        """Ensure the subclass's __init__ method calls super().__init__()."""
+        init_method = next(
+            (m for m in subclass.body if isinstance(m, ast.FunctionDef) and m.name == '__init__'),
+            None
+        )
+        if init_method and not any(is_super_init_call(stmt) for stmt in init_method.body):
+            init_method.body.insert(0, self.create_super_init_call())
 
     def is_possible(self):
-        pass
+        """Check if refactoring is possible."""
+        return len(self.subclasses) >= 2
 
     def do(self):
-        pass
+        """Perform the Extract Hierarchy refactoring."""
+        if not self.is_possible():
+            return  # Refactoring not possible
+
+        # Find best group using greedy approach
+        group, methods, fields = self.find_best_subclass_group()
+
+        if group:
+            new_class_name = f"Sub{self.target_class_node.name}"
+
+            # Create new class with common features
+            new_class = self.create_new_class(
+                new_class_name,
+                copy.deepcopy(methods),
+                copy.deepcopy(fields)
+            )
+
+            # Update selected subclasses
+            for subclass in group:
+                # Update inheritance
+                subclass.bases = [ast.Name(id=new_class_name, ctx=ast.Load())]
+
+                # Remove common methods and fields
+                self.remove_common_features(subclass, methods, fields)
+                # Ensure __init__ calls super().__init__()
+                self.ensure_subclass_init_calls_super(subclass)
+
+            # Add new class after the target class
+            insert_idx = next(
+                i for i, node in enumerate(self.result[self.file_path].nodes)
+                if node == self.target_class_node
+            ) + 1
+            self.result[self.file_path].nodes.insert(insert_idx, new_class)
+
+            # Fix missing locations in the modified nodes
+            for item in self.result.values():
+                for idx, node in enumerate(item.nodes):
+                    item.nodes[idx] = ast.fix_missing_locations(node)
+
+            self.result[self.file_path].refactored = True
+
+    def remove_common_features(self, cls: ast.ClassDef,
+                               methods: list[ast.FunctionDef],
+                               fields: list[ast.Assign]):
+        """Remove common methods and fields from the subclass."""
+        # Remove common methods
+        common_method_names = {m.name for m in methods}
+        cls.body = [
+            node for node in cls.body
+            if not (
+                    isinstance(node, ast.FunctionDef) and
+                    node.name in common_method_names and
+                    any(ast.dump(node) == ast.dump(m) for m in methods)
+            )
+        ]
+
+        # Remove common fields from __init__
+        init_method = next(
+            (m for m in cls.body if isinstance(m, ast.FunctionDef) and m.name == "__init__"),
+            None
+        )
+        if init_method:
+            common_field_info = {self.get_field_info(f) for f in fields}
+            init_method.body = [
+                stmt for stmt in init_method.body
+                if not (
+                        isinstance(stmt, ast.Assign) and
+                        self.get_field_info(stmt) in common_field_info
+                )
+            ]
 
 
 class CollapseHierarchy(Refactor):
+    def __init__(self, base: dict[str, TreeDetail], location):
+        super().__init__(base, location)
+        # Get target's parent class
+        self.parent_class = None
+        parent_names = [base.id for base in self.target_class_node.bases
+                        if isinstance(base, ast.Name)]
+        # Need to handle case of multiple classes with same name
+        for tree_detail in self.result.values():
+            for node in tree_detail.nodes:
+                if (isinstance(node, ast.ClassDef) and
+                        node.name in parent_names):
+                    self.parent_class = node
+                    break
 
     def is_possible(self):
-        pass
+        # Must have parent class and subclasses
+        return bool(self.parent_class and self.subclasses)
 
     def do(self):
-        pass
+        # Move target's methods to parent class
+        for method in self.target_class_node.body:
+            if isinstance(method, ast.FunctionDef):
+                if method.name == '__init__':
+                    # Find parent's __init__
+                    parent_init = next((m for m in self.parent_class.body
+                                        if isinstance(m, ast.FunctionDef) and
+                                        m.name == '__init__'), None)
+
+                    if parent_init:
+                        # Get target's field initializations (excluding super call)
+                        target_statements = [
+                            stmt for stmt in method.body
+                            if not is_super_init_call(stmt)
+                        ]
+
+                        # Find where super().__init__() is called in target
+                        super_call_index = next(
+                            (i for i, stmt in enumerate(method.body)
+                             if is_super_init_call(stmt)),
+                            0
+                        )
+
+                        # Split target's statements into before and after super call -> Is this okay?
+                        before_super = target_statements[:super_call_index]
+                        after_super = target_statements[super_call_index:]
+
+                        # Create new init method with properly ordered initialization
+                        new_init = ast.FunctionDef(
+                            name='__init__',
+                            args=parent_init.args,
+                            body=(before_super +
+                                  parent_init.body +
+                                  after_super),
+                            decorator_list=[],
+                            # Add location information
+                            lineno=1,
+                            col_offset=4,
+                            end_lineno=1,
+                            end_col_offset=4
+                        )
+
+                        # Fix location info for all nodes in the new method
+                        ast.fix_missing_locations(new_init)
+
+                        # Replace parent's init with merged init
+                        self.parent_class.body.remove(parent_init)
+                        self.parent_class.body.insert(0, new_init)
+
+                        # Fix locations for the entire class
+                        ast.fix_missing_locations(self.parent_class)
+
+        # Update subclasses to inherit from parent
+        for subclass in self.subclasses:
+            subclass.bases = [ast.Name(id=self.parent_class.name, ctx=ast.Load())]
+
+        # Remove target class
+        self.result[self.file_path].nodes.remove(self.target_class_node)
+        self.result[self.file_path].refactored = True
 
 
 class MakeSuperclassAbstract(Refactor):
@@ -738,18 +1044,18 @@ class ReplaceDelegationWithInheritance(Refactor):
 
 
 REFACTORING_TYPES = [
-    # PushDownMethod,
-    # PullUpMethod,
-    # IncreaseMethodAccess,
-    # DecreaseMethodAccess,
-    # PushDownField,
-    # PullUpField,
-    # IncreaseFieldAccess,
-    # DecreaseFieldAccess,
-    # ExtractHierarchy,
-    # CollapseHierarchy,
+    PushDownMethod,
+    PullUpMethod,
+    IncreaseMethodAccess,
+    DecreaseMethodAccess,
+    PushDownField,
+    PullUpField,
+    IncreaseFieldAccess,
+    DecreaseFieldAccess,
+    ExtractHierarchy,
+    CollapseHierarchy,
     MakeSuperclassAbstract,
-    # MakeSuperclassConcrete,
-    # ReplaceInheritanceWithDelegation,
-    # ReplaceDelegationWithInheritance,
+    MakeSuperclassConcrete,
+    ReplaceInheritanceWithDelegation,
+    ReplaceDelegationWithInheritance,
 ]

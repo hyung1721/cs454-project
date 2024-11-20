@@ -25,6 +25,20 @@ def find_instance_fields(body: list[ast.stmt]) -> list[ast.Assign]:
     return fields
 
 
+# In ast_utils.py
+def is_super_init_call(stmt: ast.stmt) -> bool:
+    """Check if a statement is a call to super().__init__()."""
+    return (
+        isinstance(stmt, ast.Expr) and
+        isinstance(stmt.value, ast.Call) and
+        isinstance(stmt.value.func, ast.Attribute) and
+        isinstance(stmt.value.func.value, ast.Call) and
+        isinstance(stmt.value.func.value.func, ast.Name) and
+        stmt.value.func.value.func.id == 'super' and
+        stmt.value.func.attr == '__init__'
+    )
+
+
 def is_direct_self_attr(node):
     return isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id == "self"
 
