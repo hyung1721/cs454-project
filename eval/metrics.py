@@ -155,7 +155,7 @@ def weight_of(cls:ClassParser):
     l, k = cls.l(), cls.k()
     return l * k * (k-1)
         
-def cohesion_metric(ast_cls_list, metric_type = "LSCC"):
+def cohesion_metric(ast_cls_list, metric_type):
     if metric_type not in ALLOWED_METRIC: # ALLWED_METRIC?? - 20241120 신동환
         print(f"[metrics.py] Not allowed metric type : {metric_type}")
         return None
