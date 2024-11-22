@@ -15,6 +15,9 @@ class NodeContainer:
     def lookup_alias(self, class_name: str):
         # Find the original class name which may be aliased
         for alias in self.aliases:
+            if alias.asname is None:
+                continue
+
             if alias.asname == class_name:
                 return alias.name
 
