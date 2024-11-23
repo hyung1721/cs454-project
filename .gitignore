@@ -174,3 +174,6 @@ poetry.toml
 pyrightconfig.json
 
 refactoring/target_libraries
+.DS_Store
+refactoring/.DS_Store
+refactoring/target_library_zips/.DS_Store
