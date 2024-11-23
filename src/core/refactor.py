@@ -5,33 +5,52 @@ from random import choice
 from itertools import combinations
 
 
-from refactoring.core.parsing import TreeDetail
-from refactoring.utils.ast_utils import find_normal_methods, find_instance_fields, MethodRenamer, \
+from src.core.parsing import NodeContainer
+from src.utils.ast_utils import find_normal_methods, find_instance_fields, MethodRenamer, \
     MethodOccurrenceChecker, InstanceFieldOccurrenceChecker, InitMethodInjector, SelfMethodOccurrenceReplacer, \
     is_direct_self_attr, SelfAttributeOccurrenceReplacer, check_inherit_abc, AbstractMethodDecoratorChecker, \
-    is_super_init_call
+    is_super_init_call, get_str_bases
 
 
 class Refactor(ABC):
-    def __init__(self, base: dict[str, TreeDetail], location):
+    def __construct_subclasses(self):
+        self.class_names = []
+        self.subclasses = []
+        for node_container in self.result.values():
+            for node in node_container.nodes:
+                if isinstance(node, ast.ClassDef):
+                    self.class_names.append(node.name)
+                    if any(
+                            node_container.lookup_alias(base) == self.target_class_node.name
+                            for base in get_str_bases(node.bases)
+                    ):
+                        self.subclasses.append(node)
+
+    def __construct_superclasses(self):
+        self.superclasses = []
+        superclass_names = [
+            self.target_node_container.lookup_alias(base)
+            for base in get_str_bases(self.target_class_node.bases)
+        ]
+        for node_container in self.result.values():
+            for node in node_container.nodes:
+                if isinstance(node, ast.ClassDef) and node.name in superclass_names:
+                    self.superclasses.append(node)
+
+    def __init__(self, base: dict[str, NodeContainer], location):
         self.base = base
         self.result = copy.deepcopy(base)
         self.file_path = location[0]
         self.node_idx = location[1]
 
-        target_class_node = self.result[self.file_path].nodes[self.node_idx]
+        self.target_node_container = self.result[self.file_path]
+        target_class_node = self.target_node_container.nodes[self.node_idx]
         if not isinstance(target_class_node, ast.ClassDef):
             raise Exception(f"{target_class_node} is not an instance of ast.ClassDef")
         self.target_class_node = target_class_node
 
-        self.class_names = []
-        self.subclasses = []
-        for tree_detail in self.result.values():
-            for node in tree_detail.nodes:
-                if isinstance(node, ast.ClassDef):
-                    self.class_names.append(node.name)
-                    if any(isinstance(base, ast.Name) and base.id == self.target_class_node.name for base in node.bases):
-                        self.subclasses.append(node)
+        self.__construct_subclasses()
+        self.__construct_superclasses()
 
     @abstractmethod
     def is_possible(self):
@@ -47,7 +66,7 @@ class Refactor(ABC):
 
 # Method Level Refactorings
 class PushDownMethod(Refactor):
-    def __init__(self, base: dict[str, TreeDetail], location):
+    def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
         self.methods = find_normal_methods(self.target_class_node.body)
 
@@ -55,6 +74,9 @@ class PushDownMethod(Refactor):
         return len(self.methods) >= 1 and len(self.subclasses) >= 1
 
     def do(self):
+        if not self.is_possible():
+            return
+
         method_node = choice(self.methods)
 
         # remove method from target class
@@ -71,25 +93,21 @@ class PushDownMethod(Refactor):
                 new_method = copy.deepcopy(method_node)
                 node.body.append(new_method)
 
-        self.result[self.file_path].refactored = True
+        # self.result[self.file_path].refactored = True
 
 
 class PullUpMethod(Refactor):
-    def __init__(self, base: dict[str, TreeDetail], location):
+    def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
         self.methods = find_normal_methods(self.target_class_node.body)
-
-        self.superclasses = []
-        superclass_names = [base.id for base in self.target_class_node.bases if isinstance(base, ast.Name)]
-        for tree_detail in self.result.values():
-            for node in tree_detail.nodes:
-                if isinstance(node, ast.ClassDef) and node.name in superclass_names:
-                    self.superclasses.append(node)
 
     def is_possible(self):
         return len(self.methods) >= 1 and len(self.superclasses) >= 1
 
     def do(self):
+        if not self.is_possible():
+            return
+
         method_node = choice(self.methods)
 
         # remove method from target class
@@ -101,13 +119,13 @@ class PullUpMethod(Refactor):
             new_method = copy.deepcopy(method_node)
             node.body.append(new_method)
 
-        self.result[self.file_path].refactored = True
+        # self.result[self.file_path].refactored = True
 
 
 # foo() -> public, _foo() -> protected, __foo() -> private
 # Increase Accessibility: foo() -> _foo() or _foo() -> __foo()
 class IncreaseMethodAccess(Refactor):
-    def __init__(self, base: dict[str, TreeDetail], location):
+    def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
         self.public_or_protected_methods = [
             method for method in find_normal_methods(self.target_class_node.body)
@@ -118,6 +136,9 @@ class IncreaseMethodAccess(Refactor):
         return len(self.public_or_protected_methods) >= 1
 
     def do(self):
+        if not self.is_possible():
+            return
+
         method_node = choice(self.public_or_protected_methods)
 
         old_name = method_node.name
@@ -132,7 +153,7 @@ class IncreaseMethodAccess(Refactor):
 
 # Decrease Accessibility: _foo() -> foo() or __foo() -> _foo()
 class DecreaseMethodAccess(Refactor):
-    def __init__(self, base: dict[str, TreeDetail], location):
+    def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
         self.protected_or_private_methods = [
             method for method in find_normal_methods(self.target_class_node.body)
@@ -143,6 +164,9 @@ class DecreaseMethodAccess(Refactor):
         return len(self.protected_or_private_methods) >= 1
 
     def do(self):
+        if not self.is_possible():
+            return
+
         method_node = choice(self.protected_or_private_methods)
 
         old_name = method_node.name
@@ -157,7 +181,7 @@ class DecreaseMethodAccess(Refactor):
 
 # Field Level Refactorings
 class PushDownField(Refactor):
-    def __init__(self, base: dict[str, TreeDetail], location):
+    def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
         self.fields = find_instance_fields(self.target_class_node.body)
 
@@ -182,6 +206,9 @@ class PushDownField(Refactor):
         return False
 
     def do(self):
+        if not self.is_possible():
+            return
+
         refactor_occurred = False
         pushable_fields = []
         for field in self.fields:
@@ -257,11 +284,11 @@ class PushDownField(Refactor):
                 # Shouldn't always remove it: only when we actually push down?
                 init_body = self.target_class_node.body[init_idx].body
                 init_body.remove(field_node)
-        self.result[self.file_path].refactored = refactor_occurred
+        # self.result[self.file_path].refactored = refactor_occurred
 
 
 class PullUpField(Refactor):
-    def __init__(self, base: dict[str, TreeDetail], location):
+    def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
         # Find fields in target class
         self.fields = find_instance_fields(self.target_class_node.body)
@@ -269,14 +296,15 @@ class PullUpField(Refactor):
         # Find immediate superclass
         # Only finds the first superclass (doesn't work for multiple superclasses)
         self.superclass = None
-        superclass_names = [base.id for base in self.target_class_node.bases 
-                          if isinstance(base, ast.Name)]
+        superclass_names = [
+            self.target_node_container.lookup_alias(base)
+            for base in get_str_bases(self.target_class_node.bases)
+        ]
         
         # Look for superclass definition
-        for tree_detail in self.result.values():
-            for node in tree_detail.nodes:
-                if (isinstance(node, ast.ClassDef) and 
-                    node.name in superclass_names):
+        for node_container in self.result.values():
+            for node in node_container.nodes:
+                if isinstance(node, ast.ClassDef) and node.name in superclass_names:
                     self.superclass = node
                     break
             if self.superclass:
@@ -346,13 +374,14 @@ class PullUpField(Refactor):
         if not self.superclass:
             return siblings
             
-        for tree_detail in self.result.values():
-            for node in tree_detail.nodes:
+        for node_container in self.result.values():
+            for node in node_container.nodes:
                 if isinstance(node, ast.ClassDef):
                     # Check if this class inherits from same superclass
-                    if any(isinstance(base, ast.Name) and 
-                          base.id == self.superclass.name 
-                          for base in node.bases):
+                    if any(
+                            self.target_node_container.lookup_alias(base) == self.superclass.name
+                            for base in get_str_bases(node.bases)
+                    ):
                         siblings.append(node)
         return siblings
 
@@ -364,7 +393,7 @@ class PullUpField(Refactor):
 
     def check_field_in_siblings(self, field_name: str, field_value: str) -> bool:
         """Check if field exists with same value in sibling classes"""
-        # 같은 field가 sibling에 존재하는데 다른 값이면 refactoring 불가:
+        # 같은 field가 sibling에 존재하는데 다른 값이면 src 불가:
         # 같은 field가 없거나, 있으면 같은 값이어야 진행
         # 아니면 같은 값을 가진 subclass에서만 삭제하고 올리면 되려나?
         can_refactor = True
@@ -404,7 +433,10 @@ class PullUpField(Refactor):
         return False
 
     def do(self):
-        refactored = False
+        if not self.is_possible():
+            return
+
+        # refactored = False
         remaining_fields = list(self.fields)
         while remaining_fields: # Randomly selects field.
             field = choice(remaining_fields)
@@ -447,14 +479,14 @@ class PullUpField(Refactor):
                                 stmt.targets[0].attr == field_name):
                                 sibling_init.body.remove(stmt)
                 
-                refactored = True
+                # refactored = True
                 break
 
-        self.result[self.file_path].refactored = refactored
+        # self.result[self.file_path].refactored = refactored
 
 # Python doesn't strictly enforce this, so may be a problem. 
 class IncreaseFieldAccess(Refactor):
-   def __init__(self, base: dict[str, TreeDetail], location):
+   def __init__(self, base: dict[str, NodeContainer], location):
        super().__init__(base, location)
        self.fields = find_instance_fields(self.target_class_node.body)
        # Only get fields that aren't private (don't start with __)
@@ -467,10 +499,13 @@ class IncreaseFieldAccess(Refactor):
        return len(self.increasable_fields) >= 1
 
    def do(self):
+       if not self.is_possible():
+           return
+
        field_node = choice(self.increasable_fields)
        old_name = field_node.targets[0].attr
        new_name = "_" + old_name  # Add underscore
-       refactored = False
+       # refactored = False
 
        # Change field name in target class's __init__
        for node in self.target_class_node.body:
@@ -480,7 +515,7 @@ class IncreaseFieldAccess(Refactor):
                        isinstance(stmt.targets[0], ast.Attribute) and
                        stmt.targets[0].attr == old_name):
                        stmt.targets[0].attr = new_name
-                       refactored = True
+                       # refactored = True
 
                # Also update any field usage within __init__
                for stmt in ast.walk(node):
@@ -502,11 +537,11 @@ class IncreaseFieldAccess(Refactor):
                            stmt.attr == old_name):
                            stmt.attr = new_name
 
-       self.result[self.file_path].refactored = refactored
+       # self.result[self.file_path].refactored = refactored
 
 
 class DecreaseFieldAccess(Refactor):
-   def __init__(self, base: dict[str, TreeDetail], location):
+   def __init__(self, base: dict[str, NodeContainer], location):
        super().__init__(base, location)
        self.fields = find_instance_fields(self.target_class_node.body)
        # Only get fields that start with at least one underscore
@@ -519,10 +554,13 @@ class DecreaseFieldAccess(Refactor):
        return len(self.decreasable_fields) >= 1
 
    def do(self):
+       if not self.is_possible():
+           return
+
        field_node = choice(self.decreasable_fields)
        old_name = field_node.targets[0].attr
        new_name = old_name[1:] if old_name.startswith('_') else old_name
-       refactored = False
+       # refactored = False
 
        # Change field name in target class's __init__
        for node in self.target_class_node.body:
@@ -532,7 +570,7 @@ class DecreaseFieldAccess(Refactor):
                        isinstance(stmt.targets[0], ast.Attribute) and
                        stmt.targets[0].attr == old_name):
                        stmt.targets[0].attr = new_name
-                       refactored = True
+                       # refactored = True
 
                # Also update any field usage within __init__
                for stmt in ast.walk(node):
@@ -554,14 +592,14 @@ class DecreaseFieldAccess(Refactor):
                            stmt.attr == old_name):
                            stmt.attr = new_name
 
-       self.result[self.file_path].refactored = refactored
+       # self.result[self.file_path].refactored = refactored
 
 
 ## Class Level Refactorings
 # Just accounts for simple field assignments and not all kinds of initializations
 # 1. Is it okay to just do pass if there are no common methods and fields? Shouldn't we do super init?
 class ExtractHierarchy(Refactor):
-    def __init__(self, base: dict[str, TreeDetail], location):
+    def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
         # Initialize dictionaries to store methods and fields for each subclass
         self.subclass_methods = {}  # class_node -> list of method nodes (excluding __init__)
@@ -718,11 +756,11 @@ class ExtractHierarchy(Refactor):
             init_method.body.insert(0, self.create_super_init_call())
 
     def is_possible(self):
-        """Check if refactoring is possible."""
+        """Check if src is possible."""
         return len(self.subclasses) >= 2
 
     def do(self):
-        """Perform the Extract Hierarchy refactoring."""
+        """Perform the Extract Hierarchy src."""
         if not self.is_possible():
             return  # Refactoring not possible
 
@@ -761,7 +799,7 @@ class ExtractHierarchy(Refactor):
                 for idx, node in enumerate(item.nodes):
                     item.nodes[idx] = ast.fix_missing_locations(node)
 
-            self.result[self.file_path].refactored = True
+            # self.result[self.file_path].refactored = True
 
     def remove_common_features(self, cls: ast.ClassDef,
                                methods: list[ast.FunctionDef],
@@ -795,17 +833,18 @@ class ExtractHierarchy(Refactor):
 
 
 class CollapseHierarchy(Refactor):
-    def __init__(self, base: dict[str, TreeDetail], location):
+    def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
         # Get target's parent class
         self.parent_class = None
-        parent_names = [base.id for base in self.target_class_node.bases
-                        if isinstance(base, ast.Name)]
+        parent_names = [
+            self.target_node_container.lookup_alias(base)
+            for base in get_str_bases(self.target_class_node.bases)
+        ]
         # Need to handle case of multiple classes with same name
-        for tree_detail in self.result.values():
-            for node in tree_detail.nodes:
-                if (isinstance(node, ast.ClassDef) and
-                        node.name in parent_names):
+        for node_container in self.result.values():
+            for node in node_container.nodes:
+                if isinstance(node, ast.ClassDef) and node.name in parent_names:
                     self.parent_class = node
                     break
 
@@ -814,6 +853,9 @@ class CollapseHierarchy(Refactor):
         return bool(self.parent_class and self.subclasses)
 
     def do(self):
+        if not self.is_possible():
+            return
+
         # Move target's methods to parent class
         for method in self.target_class_node.body:
             if isinstance(method, ast.FunctionDef):
@@ -872,24 +914,26 @@ class CollapseHierarchy(Refactor):
 
         # Remove target class
         self.result[self.file_path].nodes.remove(self.target_class_node)
-        self.result[self.file_path].refactored = True
+        # self.result[self.file_path].refactored = True
 
 
 class MakeSuperclassAbstract(Refactor):
-    def __init__(self, base: dict[str, TreeDetail], location):
+    def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
 
-        self.non_abstract_superclasses = []
-        superclass_names = [base.id for base in self.target_class_node.bases if isinstance(base, ast.Name)]
-        for tree_detail in self.result.values():
-            for node in tree_detail.nodes:
-                if isinstance(node, ast.ClassDef) and node.name in superclass_names and not check_inherit_abc(node):
-                    self.non_abstract_superclasses.append(node)
+        self.non_abstract_superclasses = [
+            superclass
+            for superclass in self.superclasses
+            if not check_inherit_abc(superclass)
+        ]
 
     def is_possible(self):
         return len(self.non_abstract_superclasses) >= 1
 
     def do(self):
+        if not self.is_possible():
+            return
+
         superclass = choice(self.non_abstract_superclasses)
 
         checker = AbstractMethodDecoratorChecker()
@@ -905,20 +949,22 @@ class MakeSuperclassAbstract(Refactor):
 
 
 class MakeSuperclassConcrete(Refactor):
-    def __init__(self, base: dict[str, TreeDetail], location):
+    def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
 
-        self.abstract_superclasses = []
-        superclass_names = [base.id for base in self.target_class_node.bases if isinstance(base, ast.Name)]
-        for tree_detail in self.result.values():
-            for node in tree_detail.nodes:
-                if isinstance(node, ast.ClassDef) and node.name in superclass_names and check_inherit_abc(node):
-                    self.abstract_superclasses.append(node)
+        self.abstract_superclasses = [
+            superclass
+            for superclass in self.superclasses
+            if check_inherit_abc(superclass)
+        ]
 
     def is_possible(self):
         return len(self.abstract_superclasses) >= 1
 
     def do(self):
+        if not self.is_possible():
+            return
+
         superclass = choice(self.abstract_superclasses)
 
         checker = AbstractMethodDecoratorChecker()
@@ -929,22 +975,18 @@ class MakeSuperclassConcrete(Refactor):
 
 
 class ReplaceInheritanceWithDelegation(Refactor):
-    def __init__(self, base: dict[str, TreeDetail], location):
+    def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
 
         self.methods = find_normal_methods(self.target_class_node.body)
-
-        self.superclasses = []
-        superclass_names = [base.id for base in self.target_class_node.bases if isinstance(base, ast.Name)]
-        for tree_detail in self.result.values():
-            for node in tree_detail.nodes:
-                if isinstance(node, ast.ClassDef) and node.name in superclass_names:
-                    self.superclasses.append(node)
 
     def is_possible(self):
         return len(self.superclasses) >= 1
 
     def do(self):
+        if not self.is_possible():
+            return
+
         superclass = choice(self.superclasses)
         delegate_attribute_name = f'riwd_{superclass.name}'
 
@@ -992,7 +1034,7 @@ class ReplaceInheritanceWithDelegation(Refactor):
 
 
 class ReplaceDelegationWithInheritance(Refactor):
-    def __init__(self, base: dict[str, TreeDetail], location):
+    def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
 
         self.delegation_infos = []  # (idx, self attr name, class name)
@@ -1022,6 +1064,9 @@ class ReplaceDelegationWithInheritance(Refactor):
         return len(self.delegation_infos) >= 1
 
     def do(self):
+        if not self.is_possible():
+            return
+
         idx, attr, class_name = choice(self.delegation_infos)
 
         # delegation 제거

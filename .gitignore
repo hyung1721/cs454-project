@@ -173,7 +173,11 @@ poetry.toml
 # LSP config files
 pyrightconfig.json
 
+<<<<<<< HEAD
 refactoring/target_libraries
 .DS_Store
 refactoring/.DS_Store
 refactoring/target_library_zips/.DS_Store
+=======
+src/target_libraries
+>>>>>>> 92f9fd33c5bc59ba08fd05c4116bce15fd68f1a5

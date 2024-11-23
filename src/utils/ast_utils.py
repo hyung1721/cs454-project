@@ -82,6 +82,16 @@ def check_inherit_abc(node: ast.ClassDef, remove_abc: bool = False):
     return result
 
 
+def get_str_bases(bases: list[ast.expr]):
+    for base in bases:
+        if isinstance(base, ast.Name):
+            yield base.id
+        elif isinstance(base, ast.Attribute):
+            yield base.attr
+        else:
+            raise Exception(f"{base} is not an ast.Name or ast.Attribute")
+
+
 class MethodRenamer(ast.NodeTransformer):
     def __init__(self, old_name: str, new_name: str):
         self.old_name = old_name
