@@ -96,7 +96,7 @@ class PushDownMethod(Refactor):
             checker = MethodOccurrenceChecker(method_name=method_node.name)
             checker.visit(node)
 
-            if checker.occurred and not checker.overridden:
+            if checker.occurred and not checker.defined:
                 new_method = copy.deepcopy(method_node)
                 node.body.append(new_method)
                 moved = True
@@ -131,6 +131,12 @@ class PullUpMethod(Refactor):
 
         # add method to subclasses of target class
         for node in self.superclasses:
+            checker = MethodOccurrenceChecker(method_name=method_node.name)
+            checker.visit(node)
+            if checker.defined:
+                # superclass에 동일한 method name이 있으면 pass
+                continue
+
             new_method = copy.deepcopy(method_node)
             node.body.append(new_method)
 

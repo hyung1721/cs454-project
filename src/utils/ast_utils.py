@@ -114,11 +114,11 @@ class MethodOccurrenceChecker(ast.NodeVisitor):
     def __init__(self, method_name: str):
         self.method_name = method_name
         self.occurred = False
-        self.overridden = False
+        self.defined = False
 
     def visit_FunctionDef(self, node):
-        if not self.overridden and node.name == self.method_name:
-            self.overridden = True
+        if not self.defined and node.name == self.method_name:
+            self.defined = True
         self.generic_visit(node)
 
     def visit_Call(self, node):
