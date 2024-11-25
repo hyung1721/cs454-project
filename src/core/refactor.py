@@ -9,7 +9,7 @@ from src.core.parsing import NodeContainer
 from src.utils.ast_utils import find_normal_methods, find_instance_fields, MethodRenamer, \
     MethodOccurrenceChecker, InstanceFieldOccurrenceChecker, InitMethodInjector, SelfMethodOccurrenceReplacer, \
     is_direct_self_attr, SelfAttributeOccurrenceReplacer, check_inherit_abc, AbstractMethodDecoratorChecker, \
-    is_super_init_call, get_str_bases
+    is_super_init_call, get_str_bases, MethodSelfOccurrenceChecker
 
 
 class Refactor(ABC):
@@ -79,10 +79,17 @@ class PushDownMethod(Refactor):
 
         method_node = choice(self.methods)
 
-        # remove method from target class
-        self.target_class_node.body.remove(method_node)
-        self.result[self.file_path].nodes[self.node_idx] = self.target_class_node
+        method_idx = self.target_class_node.body.index(method_node)
+        self.target_class_node.body.pop(method_idx)
 
+        # 다른 method에서 쓰이고 있으면 중단
+        self_occurrence_checker = MethodSelfOccurrenceChecker(self.target_class_node)
+        self_occurrence_checker.visit(self.target_class_node)
+        if self_occurrence_checker.occurred:
+            self.target_class_node.body.insert(method_idx, method_node)
+            return
+
+        moved = False
         # add method to subclasses of target class
         for node in self.subclasses:
             # find the occurrence of method
@@ -92,6 +99,14 @@ class PushDownMethod(Refactor):
             if checker.occurred and not checker.overridden:
                 new_method = copy.deepcopy(method_node)
                 node.body.append(new_method)
+                moved = True
+
+        if moved:
+            # remove method from target class only when a move occurs
+            self.result[self.file_path].nodes[self.node_idx] = self.target_class_node
+        else:
+            # otherwise, revert.
+            self.target_class_node.body.insert(method_idx, method_node)
 
         # self.result[self.file_path].refactored = True
 
@@ -1089,18 +1104,18 @@ class ReplaceDelegationWithInheritance(Refactor):
 
 
 REFACTORING_TYPES = [
-    PushDownMethod,
-    PullUpMethod,
-    IncreaseMethodAccess,
+    # PushDownMethod,
+    # PullUpMethod,
+    # IncreaseMethodAccess,
     DecreaseMethodAccess,
-    PushDownField,
-    PullUpField,
-    IncreaseFieldAccess,
-    DecreaseFieldAccess,
-    ExtractHierarchy,
-    CollapseHierarchy,
-    MakeSuperclassAbstract,
-    MakeSuperclassConcrete,
-    ReplaceInheritanceWithDelegation,
-    ReplaceDelegationWithInheritance,
+    # PushDownField,
+    # PullUpField,
+    # IncreaseFieldAccess,
+    # DecreaseFieldAccess,
+    # ExtractHierarchy,
+    # CollapseHierarchy,
+    # MakeSuperclassAbstract,
+    # MakeSuperclassConcrete,
+    # ReplaceInheritanceWithDelegation,
+    # ReplaceDelegationWithInheritance,
 ]
