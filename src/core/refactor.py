@@ -131,6 +131,10 @@ class PullUpMethod(Refactor):
 
         # add method to subclasses of target class
         for node in self.superclasses:
+            if check_inherit_abc(node):
+                # skip abstract superclass
+                continue
+
             checker = MethodOccurrenceChecker(method_name=method_node.name)
             checker.visit(node)
             if checker.defined:
