@@ -9,7 +9,7 @@ from src.core.parsing import NodeContainer
 from src.utils.ast_utils import find_normal_methods, find_instance_fields, MethodRenamer, \
     MethodOccurrenceChecker, InstanceFieldOccurrenceChecker, InitMethodInjector, SelfMethodOccurrenceReplacer, \
     is_direct_self_attr, SelfAttributeOccurrenceReplacer, check_inherit_abc, AbstractMethodDecoratorChecker, \
-    is_super_init_call, get_str_bases
+    is_super_init_call, get_str_bases, MethodSelfOccurrenceChecker
 
 
 class Refactor(ABC):
@@ -37,6 +37,30 @@ class Refactor(ABC):
                 if isinstance(node, ast.ClassDef) and node.name in superclass_names:
                     self.superclasses.append(node)
 
+    def _get_all_descendants(self, current_node: ast.ClassDef):
+        current_subclasses = []
+
+        for node_container in self.result.values():
+            for node in node_container.nodes:
+                if isinstance(node, ast.ClassDef):
+                    if any(
+                            node_container.lookup_alias(base) == current_node.name
+                            for base in get_str_bases(node.bases)
+                    ):
+                        current_subclasses.append(node)
+
+        more_subclasses = []
+        for subclass in current_subclasses:
+            more_subclasses.extend(self._get_all_descendants(subclass))
+
+        return current_subclasses + more_subclasses
+
+    def __execute_post_processes(self):
+        # refactoring 수행 이후 후처리 작업들
+
+        if len(self.target_class_node.body) == 0:
+            self.target_class_node.body.append(ast.Pass())
+
     def __init__(self, base: dict[str, NodeContainer], location):
         self.base = base
         self.result = copy.deepcopy(base)
@@ -57,8 +81,12 @@ class Refactor(ABC):
         ...
 
     @abstractmethod
-    def do(self):
+    def _do(self):
         ...
+
+    def do(self):
+        self._do()
+        self.__execute_post_processes()
 
     def undo(self):
         self.result = self.base
@@ -73,25 +101,40 @@ class PushDownMethod(Refactor):
     def is_possible(self):
         return len(self.methods) >= 1 and len(self.subclasses) >= 1
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
         method_node = choice(self.methods)
 
-        # remove method from target class
-        self.target_class_node.body.remove(method_node)
-        self.result[self.file_path].nodes[self.node_idx] = self.target_class_node
+        method_idx = self.target_class_node.body.index(method_node)
+        self.target_class_node.body.pop(method_idx)
 
+        # 다른 method에서 쓰이고 있으면 중단
+        self_occurrence_checker = MethodSelfOccurrenceChecker(self.target_class_node)
+        self_occurrence_checker.visit(self.target_class_node)
+        if self_occurrence_checker.occurred:
+            self.target_class_node.body.insert(method_idx, method_node)
+            return
+
+        moved = False
         # add method to subclasses of target class
         for node in self.subclasses:
             # find the occurrence of method
             checker = MethodOccurrenceChecker(method_name=method_node.name)
             checker.visit(node)
 
-            if checker.occurred and not checker.overridden:
+            if checker.occurred and not checker.defined:
                 new_method = copy.deepcopy(method_node)
                 node.body.append(new_method)
+                moved = True
+
+        if moved:
+            # remove method from target class only when a move occurs
+            self.result[self.file_path].nodes[self.node_idx] = self.target_class_node
+        else:
+            # otherwise, revert.
+            self.target_class_node.body.insert(method_idx, method_node)
 
         # self.result[self.file_path].refactored = True
 
@@ -104,7 +147,7 @@ class PullUpMethod(Refactor):
     def is_possible(self):
         return len(self.methods) >= 1 and len(self.superclasses) >= 1
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
@@ -116,6 +159,16 @@ class PullUpMethod(Refactor):
 
         # add method to subclasses of target class
         for node in self.superclasses:
+            if check_inherit_abc(node):
+                # skip abstract superclass
+                continue
+
+            checker = MethodOccurrenceChecker(method_name=method_node.name)
+            checker.visit(node)
+            if checker.defined:
+                # superclass에 동일한 method name이 있으면 pass
+                continue
+
             new_method = copy.deepcopy(method_node)
             node.body.append(new_method)
 
@@ -123,8 +176,8 @@ class PullUpMethod(Refactor):
 
 
 # foo() -> public, _foo() -> protected, __foo() -> private
-# Increase Accessibility: foo() -> _foo() or _foo() -> __foo()
-class IncreaseMethodAccess(Refactor):
+# Decrease Accessibility: foo() -> _foo() or _foo() -> __foo()
+class DecreaseMethodAccess(Refactor):
     def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
         self.public_or_protected_methods = [
@@ -135,7 +188,7 @@ class IncreaseMethodAccess(Refactor):
     def is_possible(self):
         return len(self.public_or_protected_methods) >= 1
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
@@ -143,16 +196,28 @@ class IncreaseMethodAccess(Refactor):
 
         old_name = method_node.name
         new_name = "_" + method_node.name
+
+        for node in self.target_class_node.body:
+            if isinstance(node, ast.FunctionDef):
+                if method_node.name == new_name:
+                    return
+
         renamer = MethodRenamer(old_name=old_name, new_name=new_name)
 
-        # Change the all occurrence of method in classes, including subclasses
-        classes = [self.target_class_node] + self.subclasses
+        # Change the all occurrence of method in classes, including all descendants
+        classes = [
+            self.target_class_node,
+            *self._get_all_descendants(self.target_class_node)
+        ]
+
+        print(classes)
+
         for item in classes:
             renamer.visit(item)
 
 
-# Decrease Accessibility: _foo() -> foo() or __foo() -> _foo()
-class DecreaseMethodAccess(Refactor):
+# Increase Accessibility: _foo() -> foo() or __foo() -> _foo()
+class IncreaseMethodAccess(Refactor):
     def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
         self.protected_or_private_methods = [
@@ -163,7 +228,7 @@ class DecreaseMethodAccess(Refactor):
     def is_possible(self):
         return len(self.protected_or_private_methods) >= 1
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
@@ -171,10 +236,19 @@ class DecreaseMethodAccess(Refactor):
 
         old_name = method_node.name
         new_name = method_node.name[1:]  # remove first underscore
+
+        for node in self.target_class_node.body:
+            if isinstance(node, ast.FunctionDef):
+                if method_node.name == new_name:
+                    return
+
         renamer = MethodRenamer(old_name=old_name, new_name=new_name)
 
-        # Change the all occurrence of method in classes, including subclasses
-        classes = [self.target_class_node] + self.subclasses
+        # Change the all occurrence of method in classes, including all descendants
+        classes = [
+            self.target_class_node,
+            *self._get_all_descendants(self.target_class_node)
+        ]
         for item in classes:
             renamer.visit(item)
 
@@ -205,7 +279,7 @@ class PushDownField(Refactor):
         print(f"All fields used by parent method")
         return False
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
@@ -432,7 +506,7 @@ class PullUpField(Refactor):
                 
         return False
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
@@ -498,7 +572,7 @@ class IncreaseFieldAccess(Refactor):
    def is_possible(self):
        return len(self.increasable_fields) >= 1
 
-   def do(self):
+   def _do(self):
        if not self.is_possible():
            return
 
@@ -553,7 +627,7 @@ class DecreaseFieldAccess(Refactor):
    def is_possible(self):
        return len(self.decreasable_fields) >= 1
 
-   def do(self):
+   def _do(self):
        if not self.is_possible():
            return
 
@@ -759,7 +833,7 @@ class ExtractHierarchy(Refactor):
         """Check if src is possible."""
         return len(self.subclasses) >= 2
 
-    def do(self):
+    def _do(self):
         """Perform the Extract Hierarchy src."""
         if not self.is_possible():
             return  # Refactoring not possible
@@ -852,7 +926,7 @@ class CollapseHierarchy(Refactor):
         # Must have parent class and subclasses
         return bool(self.parent_class and self.subclasses)
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
@@ -930,7 +1004,7 @@ class MakeSuperclassAbstract(Refactor):
     def is_possible(self):
         return len(self.non_abstract_superclasses) >= 1
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
@@ -961,7 +1035,7 @@ class MakeSuperclassConcrete(Refactor):
     def is_possible(self):
         return len(self.abstract_superclasses) >= 1
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
@@ -983,7 +1057,7 @@ class ReplaceInheritanceWithDelegation(Refactor):
     def is_possible(self):
         return len(self.superclasses) >= 1
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
@@ -1063,7 +1137,7 @@ class ReplaceDelegationWithInheritance(Refactor):
     def is_possible(self):
         return len(self.delegation_infos) >= 1
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
@@ -1091,8 +1165,8 @@ class ReplaceDelegationWithInheritance(Refactor):
 REFACTORING_TYPES = [
     PushDownMethod,
     PullUpMethod,
-    IncreaseMethodAccess,
     DecreaseMethodAccess,
+    IncreaseMethodAccess,
     PushDownField,
     PullUpField,
     IncreaseFieldAccess,
