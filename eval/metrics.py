@@ -228,6 +228,20 @@ def cohesion_metric(ast_cls_list, metric_type):
         result.append(metric.value(cls))
     return result
 
+def get_metric_types_in_paper():
+    metric_paper_list = []
+    for metric_Type in MetricType:
+        if metric_Type == MetricType.PAPER:
+            break
+        metric_paper_list.append(metric_Type)
+    return metric_paper_list
+
+def calculate_metrices(ast_cls_list, metrices):
+    result = {}
+    for metric_type in metrices:
+        result[metric_type] = cohesion_metric(ast_cls_list, metric_type)
+    return result
+
 if __name__ == "__main__":
     # Example Usage
     source_code = """
