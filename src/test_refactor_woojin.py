@@ -16,7 +16,8 @@ if __name__ == '__main__':
 
     refactoring_count = 0
 
-    target_class_location = choice(classes)
+    # target_class_location = choice(classes)
+    target_class_location = classes[2]
     _refactoring = choice(REFACTORING_TYPES)
     print(target_class_location, _refactoring)
 
