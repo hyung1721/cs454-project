@@ -37,6 +37,24 @@ class Refactor(ABC):
                 if isinstance(node, ast.ClassDef) and node.name in superclass_names:
                     self.superclasses.append(node)
 
+    def _get_all_descendants(self, current_node: ast.ClassDef):
+        current_subclasses = []
+
+        for node_container in self.result.values():
+            for node in node_container.nodes:
+                if isinstance(node, ast.ClassDef):
+                    if any(
+                            node_container.lookup_alias(base) == current_node.name
+                            for base in get_str_bases(node.bases)
+                    ):
+                        current_subclasses.append(node)
+
+        more_subclasses = []
+        for subclass in current_subclasses:
+            more_subclasses.extend(self._get_all_descendants(subclass))
+
+        return current_subclasses + more_subclasses
+
     def __execute_post_processes(self):
         # refactoring 수행 이후 후처리 작업들
 
@@ -178,10 +196,22 @@ class IncreaseMethodAccess(Refactor):
 
         old_name = method_node.name
         new_name = "_" + method_node.name
+
+        for node in self.target_class_node.body:
+            if isinstance(node, ast.FunctionDef):
+                if method_node.name == new_name:
+                    return
+
         renamer = MethodRenamer(old_name=old_name, new_name=new_name)
 
-        # Change the all occurrence of method in classes, including subclasses
-        classes = [self.target_class_node] + self.subclasses
+        # Change the all occurrence of method in classes, including all descendants
+        classes = [
+            self.target_class_node,
+            *self._get_all_descendants(self.target_class_node)
+        ]
+
+        print(classes)
+
         for item in classes:
             renamer.visit(item)
 
@@ -206,10 +236,19 @@ class DecreaseMethodAccess(Refactor):
 
         old_name = method_node.name
         new_name = method_node.name[1:]  # remove first underscore
+
+        for node in self.target_class_node.body:
+            if isinstance(node, ast.FunctionDef):
+                if method_node.name == new_name:
+                    return
+
         renamer = MethodRenamer(old_name=old_name, new_name=new_name)
 
-        # Change the all occurrence of method in classes, including subclasses
-        classes = [self.target_class_node] + self.subclasses
+        # Change the all occurrence of method in classes, including all descendants
+        classes = [
+            self.target_class_node,
+            *self._get_all_descendants(self.target_class_node)
+        ]
         for item in classes:
             renamer.visit(item)
 
@@ -1124,18 +1163,18 @@ class ReplaceDelegationWithInheritance(Refactor):
 
 
 REFACTORING_TYPES = [
-    PushDownMethod,
-    PullUpMethod,
+    # PushDownMethod,
+    # PullUpMethod,
     IncreaseMethodAccess,
     DecreaseMethodAccess,
-    PushDownField,
-    PullUpField,
-    IncreaseFieldAccess,
-    DecreaseFieldAccess,
-    ExtractHierarchy,
-    CollapseHierarchy,
-    MakeSuperclassAbstract,
-    MakeSuperclassConcrete,
-    ReplaceInheritanceWithDelegation,
-    ReplaceDelegationWithInheritance,
+    # PushDownField,
+    # PullUpField,
+    # IncreaseFieldAccess,
+    # DecreaseFieldAccess,
+    # ExtractHierarchy,
+    # CollapseHierarchy,
+    # MakeSuperclassAbstract,
+    # MakeSuperclassConcrete,
+    # ReplaceInheritanceWithDelegation,
+    # ReplaceDelegationWithInheritance,
 ]
