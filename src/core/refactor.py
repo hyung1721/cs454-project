@@ -176,8 +176,8 @@ class PullUpMethod(Refactor):
 
 
 # foo() -> public, _foo() -> protected, __foo() -> private
-# Increase Accessibility: foo() -> _foo() or _foo() -> __foo()
-class IncreaseMethodAccess(Refactor):
+# Decrease Accessibility: foo() -> _foo() or _foo() -> __foo()
+class DecreaseMethodAccess(Refactor):
     def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
         self.public_or_protected_methods = [
@@ -216,8 +216,8 @@ class IncreaseMethodAccess(Refactor):
             renamer.visit(item)
 
 
-# Decrease Accessibility: _foo() -> foo() or __foo() -> _foo()
-class DecreaseMethodAccess(Refactor):
+# Increase Accessibility: _foo() -> foo() or __foo() -> _foo()
+class IncreaseMethodAccess(Refactor):
     def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
         self.protected_or_private_methods = [
@@ -1163,18 +1163,18 @@ class ReplaceDelegationWithInheritance(Refactor):
 
 
 REFACTORING_TYPES = [
-    # PushDownMethod,
-    # PullUpMethod,
-    IncreaseMethodAccess,
+    PushDownMethod,
+    PullUpMethod,
     DecreaseMethodAccess,
-    # PushDownField,
-    # PullUpField,
-    # IncreaseFieldAccess,
-    # DecreaseFieldAccess,
-    # ExtractHierarchy,
-    # CollapseHierarchy,
-    # MakeSuperclassAbstract,
-    # MakeSuperclassConcrete,
-    # ReplaceInheritanceWithDelegation,
-    # ReplaceDelegationWithInheritance,
+    IncreaseMethodAccess,
+    PushDownField,
+    PullUpField,
+    IncreaseFieldAccess,
+    DecreaseFieldAccess,
+    ExtractHierarchy,
+    CollapseHierarchy,
+    MakeSuperclassAbstract,
+    MakeSuperclassConcrete,
+    ReplaceInheritanceWithDelegation,
+    ReplaceDelegationWithInheritance,
 ]
