@@ -4,7 +4,7 @@ from typing import List, Dict
 
 from src.core.parsing import parse_library
 from src.core.refactor import REFACTORING_TYPES
-import constant as Constant
+import constant
 from constant import Iteration_Result, Statistics_Unit
 from evaluation import Evaluation
 from MetricType import MetricType
@@ -56,7 +56,9 @@ def fitness_function_improves(iteration_result: Iteration_Result):
 
 # Main Function
 if __name__ == '__main__':
-    node_container_dict = parse_library(Constant.Target_Library)
+    print(constant.Target_Library_Path)
+    node_container_dict = parse_library(constant.Target_Library_Path)
+    print(node_container_dict)
     classes_origin = []
     # collect all classes from library
     for file_path, node_container in node_container_dict.items():
@@ -72,7 +74,7 @@ if __name__ == '__main__':
     metrics_origin = calculate_metrics(node_container_dict, metric_types)
     result_logs: List[Iteration_Result] = []
 
-    while(refactoring_count < Constant.DESIRED_REFACTORING_COUNT):
+    while(refactoring_count < constant.DESIRED_REFACTORING_COUNT):
         is_first = True
         classes = classes_origin.copy()
         while(classes.count > 0):

@@ -257,7 +257,7 @@ class ExampleClass2(object):
         self.instance_variable1 = 7
 """
     import ast
-    from ast_helper import ast_parser as parser
+    import eval.ast_helper.ast_parser as parser
     module_ast_node = ast.parse(source_code)
 
     # 테스트를 위해, input 과 동일한 List[ast.ClassDef] 형식으로 변환
