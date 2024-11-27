@@ -29,17 +29,6 @@ class Metric:
             return self._Ca(cls)
         else:
             raise ValueError(f"Unsupported metric type: {self.metric_type}")
-        
-    def evaluate_improvement(self, before_metrics, after_metrics) -> str:
-        lower_is_better = {MetricType.CBO, MetricType.FANOUT, MetricType.CA}
-        higher_is_better = {MetricType.LSCC, MetricType.TCC, MetricType.CC, MetricType.SCOM, MetricType.LCOM5, MetricType.RFC, MetricType.FANIN}
-
-        if self.metric_type in lower_is_better:
-            return True if after_metrics < before_metrics else False
-        elif self.metric_type in higher_is_better:
-            return True if after_metrics > before_metrics else False
-        else:
-            raise ValueError(f"Unsupported metric type: {self.metric_type}")
 
     def _LSCC(self, cls:ClassParser):
         l, k = cls.l(), cls.k()
@@ -213,6 +202,17 @@ class Weight:
 
     def _Ca(self, cls_list):
         return NotImplemented
+
+def evaluate_improvement(metric_type, before_metrics, after_metrics) -> str:
+    lower_is_better = {MetricType.CBO, MetricType.FANOUT, MetricType.CA}
+    higher_is_better = {MetricType.LSCC, MetricType.TCC, MetricType.CC, MetricType.SCOM, MetricType.LCOM5, MetricType.RFC, MetricType.FANIN}
+
+    if metric_type in lower_is_better:
+        return True if after_metrics < before_metrics else False
+    elif metric_type in higher_is_better:
+        return True if after_metrics > before_metrics else False
+    else:
+        raise ValueError(f"Unsupported metric type: {self.metric_type}")
             
 def cohesion_metric(ast_cls_list, metric_type):
     # if metric_type not in ALLOWED_METRIC: # ALLWED_METRIC?? - 20241120 신동환

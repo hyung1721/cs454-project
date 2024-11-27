@@ -48,10 +48,10 @@ if __name__ == '__main__':
         for metric_value_type in metric_values_after:
             metric_value_before = metric_values_before[metric_value_type]
             metric_value_after = metric_values_after[metric_value_type]
-            if metric_value_after > metric_value_before:
-                better_metric[metric_value_type] = Metric_Log(metric_value_before, metric_value_after)
-            elif metric_value_after == metric_value_before: #오차율 0.1%까지 고려해야할지도?
+            if metric_value_after == metric_value_before: #오차율 0.1%까지 고려해야할지도?
                 stable_metric[metric_value_type] = Metric_Log(metric_value_before, metric_value_after)
+            elif mt.evaluate_improvement(metric_value_type, metric_value_before, metric_value_after):
+                better_metric[metric_value_type] = Metric_Log(metric_value_before, metric_value_after)
             else:
                 worse_metric[metric_value_type] = Metric_Log(metric_value_before, metric_value_after)
         
