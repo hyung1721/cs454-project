@@ -37,6 +37,12 @@ class Refactor(ABC):
                 if isinstance(node, ast.ClassDef) and node.name in superclass_names:
                     self.superclasses.append(node)
 
+    def __execute_post_processes(self):
+        # refactoring 수행 이후 후처리 작업들
+
+        if len(self.target_class_node.body) == 0:
+            self.target_class_node.body.append(ast.Pass())
+
     def __init__(self, base: dict[str, NodeContainer], location):
         self.base = base
         self.result = copy.deepcopy(base)
@@ -57,8 +63,12 @@ class Refactor(ABC):
         ...
 
     @abstractmethod
-    def do(self):
+    def _do(self):
         ...
+
+    def do(self):
+        self._do()
+        self.__execute_post_processes()
 
     def undo(self):
         self.result = self.base
@@ -73,7 +83,7 @@ class PushDownMethod(Refactor):
     def is_possible(self):
         return len(self.methods) >= 1 and len(self.subclasses) >= 1
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
@@ -119,7 +129,7 @@ class PullUpMethod(Refactor):
     def is_possible(self):
         return len(self.methods) >= 1 and len(self.superclasses) >= 1
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
@@ -160,7 +170,7 @@ class IncreaseMethodAccess(Refactor):
     def is_possible(self):
         return len(self.public_or_protected_methods) >= 1
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
@@ -188,7 +198,7 @@ class DecreaseMethodAccess(Refactor):
     def is_possible(self):
         return len(self.protected_or_private_methods) >= 1
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
@@ -230,7 +240,7 @@ class PushDownField(Refactor):
         print(f"All fields used by parent method")
         return False
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
@@ -457,7 +467,7 @@ class PullUpField(Refactor):
                 
         return False
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
@@ -523,7 +533,7 @@ class IncreaseFieldAccess(Refactor):
    def is_possible(self):
        return len(self.increasable_fields) >= 1
 
-   def do(self):
+   def _do(self):
        if not self.is_possible():
            return
 
@@ -578,7 +588,7 @@ class DecreaseFieldAccess(Refactor):
    def is_possible(self):
        return len(self.decreasable_fields) >= 1
 
-   def do(self):
+   def _do(self):
        if not self.is_possible():
            return
 
@@ -784,7 +794,7 @@ class ExtractHierarchy(Refactor):
         """Check if src is possible."""
         return len(self.subclasses) >= 2
 
-    def do(self):
+    def _do(self):
         """Perform the Extract Hierarchy src."""
         if not self.is_possible():
             return  # Refactoring not possible
@@ -877,7 +887,7 @@ class CollapseHierarchy(Refactor):
         # Must have parent class and subclasses
         return bool(self.parent_class and self.subclasses)
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
@@ -955,7 +965,7 @@ class MakeSuperclassAbstract(Refactor):
     def is_possible(self):
         return len(self.non_abstract_superclasses) >= 1
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
@@ -986,7 +996,7 @@ class MakeSuperclassConcrete(Refactor):
     def is_possible(self):
         return len(self.abstract_superclasses) >= 1
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
@@ -1008,7 +1018,7 @@ class ReplaceInheritanceWithDelegation(Refactor):
     def is_possible(self):
         return len(self.superclasses) >= 1
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
@@ -1088,7 +1098,7 @@ class ReplaceDelegationWithInheritance(Refactor):
     def is_possible(self):
         return len(self.delegation_infos) >= 1
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
@@ -1114,18 +1124,18 @@ class ReplaceDelegationWithInheritance(Refactor):
 
 
 REFACTORING_TYPES = [
-    # PushDownMethod,
-    # PullUpMethod,
-    # IncreaseMethodAccess,
+    PushDownMethod,
+    PullUpMethod,
+    IncreaseMethodAccess,
     DecreaseMethodAccess,
-    # PushDownField,
-    # PullUpField,
-    # IncreaseFieldAccess,
-    # DecreaseFieldAccess,
-    # ExtractHierarchy,
-    # CollapseHierarchy,
-    # MakeSuperclassAbstract,
-    # MakeSuperclassConcrete,
-    # ReplaceInheritanceWithDelegation,
-    # ReplaceDelegationWithInheritance,
+    PushDownField,
+    PullUpField,
+    IncreaseFieldAccess,
+    DecreaseFieldAccess,
+    ExtractHierarchy,
+    CollapseHierarchy,
+    MakeSuperclassAbstract,
+    MakeSuperclassConcrete,
+    ReplaceInheritanceWithDelegation,
+    ReplaceDelegationWithInheritance,
 ]
