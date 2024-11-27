@@ -6,7 +6,7 @@ from core.refactor import REFACTORING_TYPES, PushDownField, PullUpField, Increas
 
 
 def test_refactoring(library_path, refactoring_type=None):
-    """Test a specific or random src on a library"""
+    """Test a specific or random refactoring on a library"""
     # Parse the library
     node_container_dict = parse_library(library_path)
 
@@ -22,38 +22,38 @@ def test_refactoring(library_path, refactoring_type=None):
         print(f"- {name} in {file_path}")
     print()
 
-    # Try src each class
+    # Try refactoring each class
     results = []
-    for class_location in classes:  # Tries to do src on all classes
+    for class_location in classes:  # Tries to do refactoring on all classes
         file_path, idx, class_name = class_location
 
-        # Use specified src type or try all types
+        # Use specified refactoring type or try all types
         refactoring_types = [refactoring_type] if refactoring_type else REFACTORING_TYPES
 
         for refactoring_class in refactoring_types:
             print(f"\nTrying {refactoring_class.__name__} on {class_name}...")
 
-            # Create src instance
+            # Create refactoring instance
             refactor = refactoring_class(
                 base=node_container_dict,
                 location=(file_path, idx)
             )
 
-            # Check if src is possible
+            # Check if refactoring is possible
             if refactor.is_possible():
                 print("Refactoring is possible")
 
                 # Show original code
-                print("\nBefore src:")
+                print("\nBefore refactoring:")
                 for node in node_container_dict[file_path].nodes:
                     print(ast.unparse(node))
                     print("-" * 40)
 
-                # Do src
+                # Do refactoring
                 refactor.do()
 
                 # Show refactored code
-                print("\nAfter src:")
+                print("\nAfter refactoring:")
                 for item in refactor.result.values():
                     for node in item.nodes:
                         print(ast.unparse(node))
@@ -62,7 +62,7 @@ def test_refactoring(library_path, refactoring_type=None):
                 # Store result
                 results.append({
                     'class_name': class_name,
-                    'src': refactoring_class.__name__,
+                    'refactoring': refactoring_class.__name__,
                     'success': True
                 })
 
@@ -78,7 +78,7 @@ def test_refactoring(library_path, refactoring_type=None):
                 print(f"Refactoring not possible")
                 results.append({
                     'class_name': class_name,
-                    'src': refactoring_class.__name__,
+                    'refactoring': refactoring_class.__name__,
                     'success': False
                 })
 
@@ -87,7 +87,7 @@ def test_refactoring(library_path, refactoring_type=None):
     print("-" * 40)
     for result in results:
         status = "✓" if result['success'] else "✗"
-        print(f"{status} {result['src']} on {result['class_name']}")
+        print(f"{status} {result['refactoring']} on {result['class_name']}")
 
 
 if __name__ == '__main__':
@@ -120,5 +120,5 @@ if __name__ == '__main__':
     #     with open("src/target_libraries/test_library/test_code.py", "w") as f:
     #         f.write(example_code)
 
-    # Test src types; test if actually works with imports
+    # Test refactoring types; test if actually works with imports
     test_refactoring("src/target_libraries/pushdownfield_test", PushDownField)
