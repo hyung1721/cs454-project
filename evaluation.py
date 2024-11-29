@@ -1,12 +1,14 @@
+import ast
+
 from eval.metrics import Weight, Metric
 from eval.class_parser import ClassParser, create_structure
 from src.core.parsing import NodeContainer
 from MetricType import MetricType
 
 class Evaluation:
-    def __init__(self, data, metric_type:MetricType):
+    def __init__(self, node_containers, metric_type:MetricType):
         self.metric_type = metric_type
-        self.result = self._evaluate(data)
+        self.result = self._evaluate(node_containers)
 
     def _metric(self, cls_parser:ClassParser):
         return Metric(self.metric_type).value(cls_parser)
@@ -14,12 +16,15 @@ class Evaluation:
     def _weight(self, cls_parser:ClassParser):
         return Weight(self.metric_type).value(cls_parser)
 
-    def _evaluate(self, data):
+    def _evaluate(self, node_containers):
         total_weight = 0
         total_metric = 0
-        for node_container in data.values():
+        for node_container in node_containers.values():
             node_list = node_container.nodes
             for node in node_list:
+                if not isinstance(node, ast.ClassDef):
+                    continue
+
                 cls_parser:ClassParser = create_structure(node)
                 metric = self._metric(cls_parser)
                 weight = self._weight(cls_parser)

@@ -1,4 +1,4 @@
-from class_parser import ClassParser, cau, intersection_of_I, union_of_I, create_structure
+from eval.class_parser import ClassParser, cau, intersection_of_I, union_of_I, create_structure
 from itertools import combinations
 from MetricType import MetricType
 
@@ -27,17 +27,6 @@ class Metric:
             return self._FanOut(cls)
         elif self.metric_type == MetricType.CA:
             return self._Ca(cls)
-        else:
-            raise ValueError(f"Unsupported metric type: {self.metric_type}")
-        
-    def evaluate_improvement(self, before_metrics, after_metrics) -> str:
-        lower_is_better = {MetricType.CBO, MetricType.FANOUT, MetricType.CA}
-        higher_is_better = {MetricType.LSCC, MetricType.TCC, MetricType.CC, MetricType.SCOM, MetricType.LCOM5, MetricType.RFC, MetricType.FANIN}
-
-        if self.metric_type in lower_is_better:
-            return True if after_metrics < before_metrics else False
-        elif self.metric_type in higher_is_better:
-            return True if after_metrics > before_metrics else False
         else:
             raise ValueError(f"Unsupported metric type: {self.metric_type}")
 
@@ -216,6 +205,17 @@ class Weight:
 
     def _Ca(self, cls_list):
         return NotImplemented
+
+def evaluate_improvement(metric_type, before_metrics, after_metrics) -> str:
+    lower_is_better = {MetricType.CBO, MetricType.FANOUT, MetricType.CA}
+    higher_is_better = {MetricType.LSCC, MetricType.TCC, MetricType.CC, MetricType.SCOM, MetricType.LCOM5, MetricType.RFC, MetricType.FANIN}
+
+    if metric_type in lower_is_better:
+        return True if after_metrics < before_metrics else False
+    elif metric_type in higher_is_better:
+        return True if after_metrics > before_metrics else False
+    else:
+        raise ValueError(f"Unsupported metric type: {self.metric_type}")
             
 def cohesion_metric(ast_cls_list, metric_type):
     # if metric_type not in ALLOWED_METRIC: # ALLWED_METRIC?? - 20241120 신동환
@@ -229,20 +229,6 @@ def cohesion_metric(ast_cls_list, metric_type):
         # weight = weight_of(cls)
         # total_weight += weight
         result.append(metric.value(cls))
-    return result
-
-def get_metric_types_in_paper():
-    metric_paper_list = []
-    for metric_Type in MetricType:
-        if metric_Type == MetricType.PAPER:
-            break
-        metric_paper_list.append(metric_Type)
-    return metric_paper_list
-
-def calculate_metrices(ast_cls_list, metrices):
-    result = {}
-    for metric_type in metrices:
-        result[metric_type] = cohesion_metric(ast_cls_list, metric_type)
     return result
 
 if __name__ == "__main__":
@@ -274,7 +260,7 @@ class ExampleClass2(object):
         self.instance_variable1 = 7
 """
     import ast
-    from ast_helper import ast_parser as parser
+    import eval.ast_helper.ast_parser as parser
     module_ast_node = ast.parse(source_code)
 
     # 테스트를 위해, input 과 동일한 List[ast.ClassDef] 형식으로 변환
