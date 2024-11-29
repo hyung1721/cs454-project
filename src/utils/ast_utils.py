@@ -92,10 +92,96 @@ def get_str_bases(bases: list[ast.expr]):
             raise Exception(f"{base} is not an ast.Name or ast.Attribute")
 
 
+def is_property_decorated_method(node: ast.FunctionDef):
+    return any(
+        decorator.id == "property"
+        for decorator in node.decorator_list
+        if isinstance(decorator, ast.Name)
+    )
+
+def check_nodes_equal(node1, node2):
+    if type(node1) != type(node2):
+        return False
+
+    if not hasattr(node1, "_fields"):
+        return node1 == node2
+
+    for field in node1._fields:
+        value1 = getattr(node1, field)
+        value2 = getattr(node2, field)
+
+        if isinstance(value1, list):
+            if len(value1) != len(value2):
+                return False
+
+            for v1, v2 in zip(value1, value2):
+                if not check_nodes_equal(v1, v2):
+                    return False
+        else:
+            if not check_nodes_equal(value1, value2):
+                return False
+
+    return True
+
+
+def check_functions_equal(node1: ast.FunctionDef, node2: ast.FunctionDef):
+    if len(node1.body) != len(node2.body):
+        return False
+
+    for body1, body2 in zip(node1.body, node2.body):
+        if not check_nodes_equal(body1, body2):
+            return False
+
+    for decorator1, decorator2 in zip(node1.decorator_list, node2.decorator_list):
+        if not check_nodes_equal(decorator1, decorator2):
+            return False
+
+    if not check_nodes_equal(node1.args, node2.args):
+        return False
+
+    if not check_nodes_equal(node1.returns, node2.returns):
+        return False
+
+    if node1.type_comment != node2.type_comment:
+        return False
+
+    return True
+
+
+def is_pass_like_node(node: ast.AST):
+    if isinstance(node, ast.Pass):
+        return True
+    elif isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant) and node.value == ast.Ellipsis:
+        return True
+    else:
+        return False
+
+
+def add_method_to_class(class_node: ast.ClassDef, method_node: ast.FunctionDef):
+    class_node.body.append(method_node)
+
+    class_node.body = [
+        node
+        for node in class_node.body
+        if not is_pass_like_node(node)
+    ]
+
+
+def delete_method_from_class(class_node: ast.ClassDef, method_node: ast.FunctionDef):
+    for idx, node in enumerate(class_node.body):
+        if isinstance(node, ast.FunctionDef) and node.name == method_node.name:
+            class_node.body.pop(idx)
+            break
+
+    if len(class_node.body) == 0:
+        class_node.body.append(ast.Pass())
+
+
 class MethodRenamer(ast.NodeTransformer):
-    def __init__(self, old_name: str, new_name: str):
+    def __init__(self, old_name: str, new_name: str, as_property: bool = False):
         self.old_name = old_name
         self.new_name = new_name
+        self.as_property = as_property
 
     def visit_FunctionDef(self, node):
         if node.name == self.old_name:
@@ -104,15 +190,23 @@ class MethodRenamer(ast.NodeTransformer):
         return self.generic_visit(node)
 
     def visit_Call(self, node):
-        if isinstance(node.func, ast.Attribute):
-            if node.func.attr == self.old_name:
-                node.func.attr = self.new_name
+        if not self.as_property:
+            if isinstance(node.func, ast.Attribute):
+                if node.func.attr == self.old_name:
+                    node.func.attr = self.new_name
+        return self.generic_visit(node)
+
+    def visit_Attribute(self, node):
+        if self.as_property:
+            if is_direct_self_attr(node) and node.attr == self.old_name:
+                node.attr = self.new_name
         return self.generic_visit(node)
 
 
 class MethodOccurrenceChecker(ast.NodeVisitor):
-    def __init__(self, method_name: str):
+    def __init__(self, method_name: str, as_property: bool = False):
         self.method_name = method_name
+        self.as_property = as_property
         self.occurred = False
         self.defined = False
 
@@ -122,23 +216,16 @@ class MethodOccurrenceChecker(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Call(self, node):
-        if not self.occurred and isinstance(node.func, ast.Attribute):
-            if node.func.attr == self.method_name:
+        if not self.as_property:
+            if not self.occurred and is_direct_self_attr(node.func) and node.func.attr == self.method_name:
+                    self.occurred = True
+        self.generic_visit(node)
+
+    def visit_Attribute(self, node):
+        if self.as_property:
+            if not self.occurred and is_direct_self_attr(node) and node.attr == self.method_name:
                 self.occurred = True
         self.generic_visit(node)
-
-
-# This checks the occurrence of callings of method in the class
-class MethodSelfOccurrenceChecker(ast.NodeVisitor):
-    def __init__(self, method_name: str):
-        self.method_name = method_name
-        self.occurred = False
-
-    def visit_Call(self, node):
-        if not self.occurred and is_direct_self_attr(node.func) and node.func.attr == self.method_name:
-            self.occurred = True
-        self.generic_visit(node)
-
 
 
 class InstanceFieldOccurrenceChecker(ast.NodeVisitor):
