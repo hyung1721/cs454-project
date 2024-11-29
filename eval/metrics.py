@@ -77,12 +77,15 @@ class Metric:
         for i in range(k-1):
             for j in range(i+1, k):
                 I1, I2 = cls.I(i), cls.I(j)
+                intersection_of_i = intersection_of_I(I1, I2)
+                if intersection_of_i == 0:
+                    return 0
                 sigma += len(intersection_of_I(I1, I2)) / len(union_of_I(I1, I2)) / (k * (k-1))
         return 2 * sigma
     
     def _SCOM(self, cls:ClassParser):
         l, k = cls.l(), cls.k()
-        if k <= 1:
+        if l == 0 or k <= 1:
             print("SCOM requires at least two methods")
             return 0
         sigma = 0
@@ -98,8 +101,8 @@ class Metric:
     def _LCOM5(self, cls:ClassParser):
         A = cls.A()
         l, k = cls.l(), cls.k()
-        if k <= 1:
-            print("LCOM5 requires at least two methods")
+        if l == 0 or k <= 1:
+            print("LCOM5 requires at least two methods and at least one attribute")
             return 0
         sigma = 0
         for a in A:
