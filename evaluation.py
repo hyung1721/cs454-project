@@ -1,3 +1,5 @@
+import ast
+
 from eval.metrics import Weight, Metric
 from eval.class_parser import ClassParser, create_structure
 from src.core.parsing import NodeContainer
@@ -20,6 +22,9 @@ class Evaluation:
         for node_container in node_containers.values():
             node_list = node_container.nodes
             for node in node_list:
+                if not isinstance(node, ast.ClassDef):
+                    continue
+
                 cls_parser:ClassParser = create_structure(node)
                 metric = self._metric(cls_parser)
                 weight = self._weight(cls_parser)
