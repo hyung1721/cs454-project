@@ -1101,7 +1101,7 @@ class ReplaceDelegationWithInheritance(Refactor):
     def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
 
-        self.delegation_infos = []  # (idx, self attr name, class name)
+        self.delegations = []
         self.target_class_init_method = None
         for node in self.target_class_node.body:
             if isinstance(node, ast.FunctionDef) and node.name == "__init__":
@@ -1111,29 +1111,18 @@ class ReplaceDelegationWithInheritance(Refactor):
         if self.target_class_init_method is not None:
             for idx, stmt in enumerate(self.target_class_init_method.body):
                 if isinstance(stmt, ast.Assign) and is_direct_self_attr(stmt.targets[0]) and isinstance(stmt.value, ast.Call):
-                    if isinstance(stmt.value.func, ast.Name):
-                        # case 1: self.a = A()
-                        # check A is a real class
-                        class_name = self.target_node_container.lookup_alias(stmt.value.func.id)
-                        if class_name in self.class_names:
-                            self.delegation_infos.append((idx, stmt.targets[0].attr, stmt.value.func.id))
-                    elif isinstance(stmt.value.func, ast.Attribute):
-                        # case 2: self.a = module.A()
-                        class_name = self.target_node_container.lookup_alias(stmt.value.func.attr)
-                        if class_name in self.class_names:
-                            self.delegation_infos.append((idx, stmt.targets[0].attr, stmt.value.func.attr))
-                    else:
-                        raise Exception(f"stmt.value.func with {type(stmt.value.func)} is not handled.")
-
+                    class_expr = stmt.value.func
+                    class_name = self.target_node_container.lookup_alias(
+                        list(get_str_bases([class_expr]))[0]
+                    )
+                    if class_name in self.class_names:
+                        self.delegations.append((idx, stmt.targets[0].attr, class_expr))
 
     def is_possible(self):
-        return len(self.delegation_infos) >= 1
+        return self.target_class_init_method is not None and len(self.delegations) >= 1
 
     def _do(self):
-        if self.target_class_init_method is None:
-            return
-
-        idx, attr, class_name = choice(self.delegation_infos)
+        idx, attr, class_expr = choice(self.delegations)
 
         # delegation 제거
         if self.target_class_init_method:
@@ -1142,12 +1131,7 @@ class ReplaceDelegationWithInheritance(Refactor):
                 self.target_class_init_method.body.append(ast.Pass())
 
         # inheritance 추가
-        self.target_class_node.bases.append(
-            ast.Name(
-                id=class_name,
-                ctx=ast.Load()
-            )
-        )
+        self.target_class_node.bases.append(class_expr)
 
         # occurrence 찾아서 self.으로 변경
         replacer = SelfAttributeOccurrenceReplacer(attr_name=attr)
@@ -1167,6 +1151,6 @@ REFACTORING_TYPES = [
     # CollapseHierarchy,
     # MakeSuperclassAbstract,
     # MakeSuperclassConcrete,
-    ReplaceInheritanceWithDelegation,
-    # ReplaceDelegationWithInheritance,
+    # ReplaceInheritanceWithDelegation,
+    ReplaceDelegationWithInheritance,
 ]
