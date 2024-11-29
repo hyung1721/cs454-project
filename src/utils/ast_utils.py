@@ -293,25 +293,6 @@ class InitMethodInjector(ast.NodeTransformer):
         return self.generic_visit(node)
 
 
-class SelfMethodOccurrenceReplacer(ast.NodeTransformer):
-    def __init__(self, methods_to_be_replaced: list[str], attr_name: str):
-        self.methods_to_be_replaced = methods_to_be_replaced
-        self.attr_name = attr_name
-
-    def visit_Call(self, node):
-        if is_direct_self_attr(node.func):
-            # self.foo() 같은 형태만 고려 -> node.func.value가 무조건 ast.Name 노드
-            # self.x.foo()는 inheritance가 아님
-            if node.func.attr in self.methods_to_be_replaced:
-                node.func.value = ast.Attribute(
-                    value=ast.Name(id='self', ctx=ast.Load()),
-                    attr=self.attr_name,
-                    ctx=ast.Load()
-                )
-
-        return self.generic_visit(node)
-
-
 class SelfAttributeOccurrenceReplacer(ast.NodeTransformer):
     def __init__(self, attr_name: str):
         self.attr_name = attr_name
@@ -319,7 +300,37 @@ class SelfAttributeOccurrenceReplacer(ast.NodeTransformer):
     def visit_Attribute(self, node):
         if isinstance(node.value, ast.Name):
             if node.value.id == "self" and node.attr == self.attr_name:
-                node = ast.Name(id="self", ctx=ast.Load)
+                node = ast.Name(id="self", ctx=ast.Load())
+        return self.generic_visit(node)
+
+
+# With given attr_name
+# Replace occurrences like self.a, self.foo()
+# to self.{attr_name}.a, self.{attr_name}.foo()
+class SelfOccurrenceReplacer(ast.NodeTransformer):
+    def __init__(self, methods_to_be_replaced: list[str], fields_to_be_replaced: list[str], attr_name: str):
+        self.methods_to_be_replaced = methods_to_be_replaced
+        self.fields_to_be_replaced = fields_to_be_replaced
+        self.attr_name = attr_name
+
+    def visit_Attribute(self, node):
+        # self.a -> self.{attr_name}.a
+        if is_direct_self_attr(node) and node.attr in self.fields_to_be_replaced:
+            node.value = ast.Attribute(
+                value=ast.Name(id='self', ctx=ast.Load()),
+                attr=self.attr_name,
+                ctx=ast.Load()
+            )
+        return self.generic_visit(node)
+
+    def visit_Call(self, node):
+        # self.foo() -> self.{attr_name}.foo()
+        if is_direct_self_attr(node.func) and node.func.attr in self.methods_to_be_replaced:
+            node.func.value = ast.Attribute(
+                value=ast.Name(id='self', ctx=ast.Load()),
+                attr=self.attr_name,
+                ctx=ast.Load()
+            )
         return self.generic_visit(node)
 
 
