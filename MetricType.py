@@ -6,6 +6,7 @@ class MetricType(str, Enum):
     CC = "CC"
     SCOM = "SCOM"
     LCOM5 = "LCOM5"
+    PAPER = "Paper Suggestion"
     CBO = "CBO"
     RFC = "RFC"
     FANIN = "FANIN"
