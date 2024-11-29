@@ -43,6 +43,9 @@ class Metric:
 
     def _LSCC(self, cls:ClassParser):
         l, k = cls.l(), cls.k()
+        if l == 0 and k == 0:
+            print("LSCC found empty class")
+            return 1
         if l == 0 and k > 1:
             return 0
         elif (l > 0 and k == 0) or k == 1:
