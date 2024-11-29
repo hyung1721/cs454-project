@@ -287,6 +287,9 @@ class PushDownField(Refactor):
         return False
 
     def _do(self):
+        if not self.is_possible():
+            return
+
         refactor_occurred = False
         pushable_fields = []
         for field in self.fields:
@@ -294,7 +297,25 @@ class PushDownField(Refactor):
             if not self.is_field_used_by_parent(field_name):
                 pushable_fields.append(field)
 
-        field_node = choice(pushable_fields)
+        # find candidate field for pushdown
+        pushdown_candidates = []
+        for candidate_field_name in pushable_fields:
+            checker = InstanceFieldOccurrenceChecker(field_name=candidate_field_name)
+            pushable_subclass = None
+            is_first = True
+            is_only = False
+            for subclass in self.subclasses:
+                checker.visit(node)
+                if checker.occurred and not checker.defined:
+                    if is_first:
+                        pushdown_subclass = subclass
+                        is_only = True
+                    else:
+                        is_only = False
+            if is_only:
+                pushdown_candidates.append((candidate_field_name, pushable_subclass))
+
+        field_node, pushdown_subclass = choice(pushdown_candidates)
         field_name = field_node.targets[0].attr  # get name from self.field_name
 
         # Find __init__ method
@@ -304,64 +325,57 @@ class PushDownField(Refactor):
                 init_idx = idx
                 break
 
-        # Add to subclasses that use but don't define it
-        for node in self.subclasses:
-            checker = InstanceFieldOccurrenceChecker(field_name=field_name)
-            checker.visit(node)
+        # Find or create __init__ in subclass
+        init_method = None
+        for child in pushable_subclass.body:
+            if isinstance(child, ast.FunctionDef) and child.name == "__init__":
+                init_method = child
+                break
 
-            if checker.occurred and not checker.defined:
-                refactor_occurred = True
-                # Find or create __init__ in subclass
-                init_method = None
-                for child in node.body:
-                    if isinstance(child, ast.FunctionDef) and child.name == "__init__":
-                        init_method = child
-                        break
-
-                if init_method is None:
-                    # Create new __init__ with super().__init__() call
-                    init_method = ast.FunctionDef(
-                        name='__init__',
-                        args=ast.arguments(
-                            posonlyargs=[],
-                            args=[ast.arg(arg='self', lineno=1, col_offset=0)],
-                            kwonlyargs=[],
-                            kw_defaults=[],
-                            defaults=[]
-                        ),
-                        body=[
-                            ast.Expr(
+        if init_method is None:
+            # Create new __init__ with super().__init__() call
+            init_method = ast.FunctionDef(
+                name='__init__',
+                args=ast.arguments(
+                    posonlyargs=[],
+                    args=[ast.arg(arg='self', lineno=1, col_offset=0)],
+                    kwonlyargs=[],
+                    kw_defaults=[],
+                    defaults=[]
+                ),
+                body=[
+                    ast.Expr(
+                        value=ast.Call(
+                            func=ast.Attribute(
                                 value=ast.Call(
-                                    func=ast.Attribute(
-                                        value=ast.Call(
-                                            func=ast.Name(id='super'),
-                                            args=[],
-                                            keywords=[]
-                                        ),
-                                        attr='__init__'
-                                    ),
+                                    func=ast.Name(id='super'),
                                     args=[],
                                     keywords=[]
-                                )
-                            )
-                        ],
-                        decorator_list=[],
-                        lineno=1,
-                        col_offset=0,
-                        end_lineno=1,
-                        end_col_offset=0
+                                ),
+                                attr='__init__'
+                            ),
+                            args=[],
+                            keywords=[]
+                        )
                     )
-                    node.body.insert(0, init_method)
+                ],
+                decorator_list=[],
+                lineno=1,
+                col_offset=0,
+                end_lineno=1,
+                end_col_offset=0
+            )
+            pushdown_subclass.body.insert(0, init_method)
 
-                # Add field assignment after super().__init__()
-                new_field = copy.deepcopy(field_node)
-                init_method.body.insert(1, new_field)
-        if refactor_occurred:
-            if init_idx is not None:
-                # Remove field from parent's __init__
-                # Shouldn't always remove it: only when we actually push down?
-                init_body = self.target_class_node.body[init_idx].body
-                init_body.remove(field_node)
+        # Add field assignment after super().__init__()
+        new_field = copy.deepcopy(field_node)
+        init_method.body.insert(1, new_field)
+        
+        if init_idx is not None:
+            # Remove field from parent's __init__
+            # Shouldn't always remove it: only when we actually push down?
+            init_body = self.target_class_node.body[init_idx].body
+            init_body.remove(field_node)
         # self.result[self.file_path].refactored = refactor_occurred
 
 
