@@ -18,7 +18,7 @@ if __name__ == '__main__':
 
     # target_class_location = choice(classes)
     print(classes)
-    target_class_location = classes[6]
+    target_class_location = classes[7]
     _refactoring = choice(REFACTORING_TYPES)
     print(target_class_location, _refactoring)
 
@@ -28,7 +28,7 @@ if __name__ == '__main__':
         refactor.do()
 
         for file_path, item in refactor.result.items():
-            if "interface" in file_path:
+            if "api" in file_path:
                 for node in item.nodes:
                     print(ast.unparse(node))
 

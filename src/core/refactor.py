@@ -214,15 +214,17 @@ class DecreaseMethodAccess(Refactor):
                     return
 
         renamer = MethodRenamer(old_name, new_name, is_property_method)
+        renamer.visit(self.target_class_node)
 
-        # Change the all occurrence of method in classes, including all descendants
-        classes = [
-            self.target_class_node,
-            *self._get_all_descendants(self.target_class_node)
-        ]
+        # Change the all occurrence of method in descendants
+        descendants = self._get_all_descendants(self.target_class_node)
 
-        for item in classes:
-            renamer.visit(item)
+        for descendant in descendants:
+            occurrence_checker = MethodOccurrenceChecker(old_name, is_property_method)
+            occurrence_checker.visit(descendant)
+
+            if not occurrence_checker.defined:
+                renamer.visit(descendant)
 
 
 # Increase Accessibility: _foo() -> foo() or __foo() -> _foo()
@@ -250,14 +252,17 @@ class IncreaseMethodAccess(Refactor):
                     return
 
         renamer = MethodRenamer(old_name, new_name, is_property_method)
+        renamer.visit(self.target_class_node)
 
-        # Change the all occurrence of method in classes, including all descendants
-        classes = [
-            self.target_class_node,
-            *self._get_all_descendants(self.target_class_node)
-        ]
-        for item in classes:
-            renamer.visit(item)
+        # Change the all occurrence of method in descendants
+        descendants = self._get_all_descendants(self.target_class_node)
+
+        for descendant in descendants:
+            occurrence_checker = MethodOccurrenceChecker(old_name, is_property_method)
+            occurrence_checker.visit(descendant)
+
+            if not occurrence_checker.defined:
+                renamer.visit(descendant)
 
 
 # Field Level Refactorings
@@ -1152,8 +1157,8 @@ class ReplaceDelegationWithInheritance(Refactor):
 REFACTORING_TYPES = [
     # PushDownMethod,
     # PullUpMethod,
-    # DecreaseMethodAccess,
-    # IncreaseMethodAccess,
+    DecreaseMethodAccess,
+    IncreaseMethodAccess,
     # PushDownField,
     # PullUpField,
     # IncreaseFieldAccess,
@@ -1163,5 +1168,5 @@ REFACTORING_TYPES = [
     # MakeSuperclassAbstract,
     # MakeSuperclassConcrete,
     # ReplaceInheritanceWithDelegation,
-    ReplaceDelegationWithInheritance,
+    # ReplaceDelegationWithInheritance,
 ]
