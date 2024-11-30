@@ -301,21 +301,17 @@ class PushDownField(Refactor):
         pushdown_candidates = []
         for candidate_field_name in pushable_fields:
             checker = InstanceFieldOccurrenceChecker(field_name=candidate_field_name)
-            pushable_subclass = None
-            is_first = True
-            is_only = False
+            pushable_subclasses = []
             for subclass in self.subclasses:
                 checker.visit(node)
                 if checker.occurred and not checker.defined:
-                    if is_first:
-                        pushdown_subclass = subclass
-                        is_only = True
-                    else:
-                        is_only = False
-            if is_only:
-                pushdown_candidates.append((candidate_field_name, pushable_subclass))
+                    pushable_subclasses.append(subclass)
+            pushdown_candidates.append((candidate_field_name, pushable_subclasses))
+        
+        if not pushdown_candidates:
+            return
 
-        field_node, pushdown_subclass = choice(pushdown_candidates)
+        field_node, pushdown_subclasses = choice(pushdown_candidates)
         field_name = field_node.targets[0].attr  # get name from self.field_name
 
         # Find __init__ method
@@ -325,58 +321,59 @@ class PushDownField(Refactor):
                 init_idx = idx
                 break
 
-        # Find or create __init__ in subclass
-        init_method = None
-        for child in pushable_subclass.body:
-            if isinstance(child, ast.FunctionDef) and child.name == "__init__":
-                init_method = child
-                break
+        for pushdown_subclass in pushdown_subclasses:
+            # Find or create __init__ in subclass
+            init_method = None
+            for child in pushdown_subclass.body:
+                if isinstance(child, ast.FunctionDef) and child.name == "__init__":
+                    init_method = child
+                    break
 
-        if init_method is None:
-            # Create new __init__ with super().__init__() call
-            init_method = ast.FunctionDef(
-                name='__init__',
-                args=ast.arguments(
-                    posonlyargs=[],
-                    args=[ast.arg(arg='self', lineno=1, col_offset=0)],
-                    kwonlyargs=[],
-                    kw_defaults=[],
-                    defaults=[]
-                ),
-                body=[
-                    ast.Expr(
-                        value=ast.Call(
-                            func=ast.Attribute(
-                                value=ast.Call(
-                                    func=ast.Name(id='super'),
-                                    args=[],
-                                    keywords=[]
+            if init_method is None:
+                # Create new __init__ with super().__init__() call
+                init_method = ast.FunctionDef(
+                    name='__init__',
+                    args=ast.arguments(
+                        posonlyargs=[],
+                        args=[ast.arg(arg='self', lineno=1, col_offset=0)],
+                        kwonlyargs=[],
+                        kw_defaults=[],
+                        defaults=[]
+                    ),
+                    body=[
+                        ast.Expr(
+                            value=ast.Call(
+                                func=ast.Attribute(
+                                    value=ast.Call(
+                                        func=ast.Name(id='super'),
+                                        args=[],
+                                        keywords=[]
+                                    ),
+                                    attr='__init__'
                                 ),
-                                attr='__init__'
-                            ),
-                            args=[],
-                            keywords=[]
+                                args=[],
+                                keywords=[]
+                            )
                         )
-                    )
-                ],
-                decorator_list=[],
-                lineno=1,
-                col_offset=0,
-                end_lineno=1,
-                end_col_offset=0
-            )
-            pushdown_subclass.body.insert(0, init_method)
+                    ],
+                    decorator_list=[],
+                    lineno=1,
+                    col_offset=0,
+                    end_lineno=1,
+                    end_col_offset=0
+                )
+                pushdown_subclass.body.insert(0, init_method)
 
-        # Add field assignment after super().__init__()
-        new_field = copy.deepcopy(field_node)
-        init_method.body.insert(1, new_field)
-        
-        if init_idx is not None:
-            # Remove field from parent's __init__
-            # Shouldn't always remove it: only when we actually push down?
-            init_body = self.target_class_node.body[init_idx].body
-            init_body.remove(field_node)
-        # self.result[self.file_path].refactored = refactor_occurred
+            # Add field assignment after super().__init__()
+            new_field = copy.deepcopy(field_node)
+            init_method.body.insert(1, new_field)
+            
+            if init_idx is not None:
+                # Remove field from parent's __init__
+                # Shouldn't always remove it: only when we actually push down?
+                init_body = self.target_class_node.body[init_idx].body
+                init_body.remove(field_node)
+            # self.result[self.file_path].refactored = refactor_occurred
 
 
 class PullUpField(Refactor):
