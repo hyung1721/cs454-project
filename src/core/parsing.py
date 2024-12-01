@@ -4,7 +4,7 @@ import sys
 from pprint import pprint
 
 IGNORE_PYTHON_FILE = ["__init__.py", "__main__.py"]
-ENCODING = "utf-8" if sys.platform == "darwin" else "cp949"
+ENCODING = "utf-8"
 
 
 class NodeContainer:

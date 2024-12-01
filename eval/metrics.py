@@ -67,9 +67,8 @@ class Metric:
             for j in range(i+1, k):
                 I1, I2 = cls.I(i), cls.I(j)
                 union_of_i = union_of_I(I1, I2)
-                if len(union_of_i) == 0:
-                    return 0
-                sigma += len(intersection_of_I(I1, I2)) / len(union_of_i) / (k * (k-1))
+                if len(union_of_i) != 0:
+                    sigma += len(intersection_of_I(I1, I2)) / len(union_of_i) / (k * (k-1))
         return 2 * sigma
     
     def _SCOM(self, cls:ClassParser):

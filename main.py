@@ -56,9 +56,7 @@ def fitness_function_improves(iteration_result: Iteration_Result):
 
 # Main Function
 if __name__ == '__main__':
-    print(constant.Target_Library_Path)
     node_container_dict = parse_library(constant.Target_Library_Path)
-    print(node_container_dict)
     classes_origin = []
     # collect all classes from library
     for file_path, node_container in node_container_dict.items():
@@ -77,23 +75,24 @@ if __name__ == '__main__':
     while(refactoring_count < constant.DESIRED_REFACTORING_COUNT):
         is_first = True
         classes = classes_origin.copy()
-        while(classes.count > 0):
+        while(len(classes) > 0):
             target_class = classes.pop()
             
             refactoring_methods = REFACTORING_TYPES.copy()
             shuffle(refactoring_methods)
-            while(refactoring_methods.count > 0):
+            while(len(refactoring_methods) > 0):
                 refactoring_method = refactoring_methods.pop()
                 refactor = refactoring_method(base=node_container_dict, location=target_class)
                 if refactor.is_possible():
                     refactor.do()
-                    metrics_before = metrics_origin if is_first else result_logs[refactoring_count-1]
+                    metrics_before = metrics_origin if is_first else metrics_before
                     metrics_after = calculate_metrics(refactor.result, metric_types)
-                    iteration_result = Iteration_Result(metrics_before, metrics_after)
+                    iteration_result = compare_metrics(metrics_before, metrics_after)
                     if(fitness_function_improves(iteration_result)):
                         is_first = False
                         result_logs.append(iteration_result)
                         refactoring_count+=1
+                        metrics_before = metrics_after
                     else:
                         refactor.undo()
     
