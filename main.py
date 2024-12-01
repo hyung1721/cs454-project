@@ -54,6 +54,9 @@ def make_statistics(result_logs: List[Iteration_Result], metric_type_list):
 def fitness_function_improves(iteration_result: Iteration_Result):
     return not iteration_result.better_metric
 
+def is_finish_cycle(refactoring_count):
+    return refactoring_count < constant.DESIRED_REFACTORING_COUNT
+
 # Main Function
 if __name__ == '__main__':
     node_container_dict = parse_library(constant.Target_Library_Path)
@@ -72,14 +75,14 @@ if __name__ == '__main__':
     metrics_origin = calculate_metrics(node_container_dict, metric_types)
     result_logs: List[Iteration_Result] = []
 
-    while(refactoring_count < constant.DESIRED_REFACTORING_COUNT):
+    while(is_finish_cycle(refactoring_count)):
+        print(f"Start New: {refactoring_count}")
         is_first = True
         classes = classes_origin.copy()
         while(len(classes) > 0):
             target_class = classes.pop()
-            
             refactoring_methods = REFACTORING_TYPES.copy()
-            shuffle(refactoring_methods)
+            shuffle(refactoring_methods) # Random
             while(len(refactoring_methods) > 0):
                 refactoring_method = refactoring_methods.pop()
                 refactor = refactoring_method(base=node_container_dict, location=target_class)
@@ -93,6 +96,7 @@ if __name__ == '__main__':
                         result_logs.append(iteration_result)
                         refactoring_count+=1
                         metrics_before = metrics_after
+                        print(f"{refactoring_count}th Refactoring_Success: {refactoring_method}")
                     else:
                         refactor.undo()
     

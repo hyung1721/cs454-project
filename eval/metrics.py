@@ -33,7 +33,7 @@ class Metric:
     def _LSCC(self, cls:ClassParser):
         l, k = cls.l(), cls.k()
         if l == 0 and k == 0:
-            print("LSCC found empty class")
+            # print("LSCC found empty class")
             return 1
         if l == 0 and k > 1:
             return 0
@@ -49,7 +49,7 @@ class Metric:
     def _TCC(self, cls:ClassParser):
         k, M = cls.k(), cls.M()
         if k <= 1:
-            print("TCC requires at least two methods")
+            # print("TCC requires at least two methods")
             return 0
         numerator = 0
         for m1_key, m2_key in combinations(M.keys(), 2):
@@ -60,7 +60,7 @@ class Metric:
     def _CC(self, cls:ClassParser):
         k = cls.k()
         if k <= 1:
-            print("CC requires at least two methods")
+            # print("CC requires at least two methods")
             return 0
         sigma = 0
         for i in range(k-1):
@@ -74,14 +74,14 @@ class Metric:
     def _SCOM(self, cls:ClassParser):
         l, k = cls.l(), cls.k()
         if l == 0 or k <= 1:
-            print("SCOM requires at least two methods")
+            # print("SCOM requires at least two methods")
             return 0
         sigma = 0
         for i in range(k-1):
             for j in range(i+1, k):
                 I1, I2 = cls.I(i), cls.I(j)
                 if len(I1) == 0 or len(I2) == 0:
-                    print("SCOM requires at least one attributes for each methods")
+                    # print("SCOM requires at least one attributes for each methods")
                     continue
                 sigma += len(intersection_of_I(I1, I2)) * len(union_of_I(I1, I2)) / min(len(I1), len(I2)) / l / (k * (k - 1))
         return 2 * sigma
@@ -90,7 +90,7 @@ class Metric:
         A = cls.A()
         l, k = cls.l(), cls.k()
         if l == 0 or k <= 1:
-            print("LCOM5 requires at least two methods and at least one attribute")
+            # print("LCOM5 requires at least two methods and at least one attribute")
             return 0
         sigma = 0
         for a in A:
