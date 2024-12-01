@@ -7,6 +7,7 @@ from src.core.refactor import REFACTORING_TYPES
 import constant
 from constant import Iteration_Result, Statistics_Unit
 from constant import Better_Idx, Static_Idx, Worse_Idx
+from constant import LibraryName as LN
 from evaluation import Evaluation
 from MetricType import MetricType
 from util import printf, write_log
@@ -67,7 +68,11 @@ def is_finish_cycle(refactoring_count):
 
 # Main Function
 if __name__ == '__main__':
-    node_container_dict = parse_library(constant.Target_Library_Path)
+    # Target Library 설정 
+    selected_library = LN.ASCIIMatics
+
+    node_container_dict = parse_library(constant.Target_Library_Path(selected_library))
+    
     classes_origin = []
     # collect all classes from library
     for file_path, node_container in node_container_dict.items():
@@ -118,4 +123,4 @@ if __name__ == '__main__':
     statistics = make_table3_statistics(result_logs, metric_types)
     for metric_type, statistic in statistics.items():
         print(f"{metric_type} {statistic[Better_Idx]}↑ {statistic[Static_Idx]}= {statistic[Worse_Idx]}↓")
-    write_log("asciimatrics", result_logs, metric_types)
+    write_log(selected_library, result_logs, metric_types)
