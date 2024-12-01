@@ -123,4 +123,4 @@ if __name__ == '__main__':
     statistics = make_table3_statistics(result_logs, metric_types)
     for metric_type, statistic in statistics.items():
         print(f"{metric_type} {statistic[Better_Idx]}↑ {statistic[Static_Idx]}= {statistic[Worse_Idx]}↓")
-    write_log(selected_library, result_logs, metric_types)
+    write_log(result_logs, metric_types, selected_library, refactoring_count, additional_naming="")
