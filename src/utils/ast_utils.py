@@ -1,5 +1,113 @@
 import ast
 
+# Add src. when merging
+from ast import AST, ClassDef, FunctionDef, Assign, Attribute, Name
+from core.parsing import NodeContainer
+
+# Utility functions
+def find_method_in_class(method_name: str, class_node: ast.ClassDef):
+    """Find method with given name in class"""
+    for node in class_node.body:
+        if isinstance(node, ast.FunctionDef) and node.name == method_name:
+            return node
+    return None
+
+def method_exists_in_class(method: ast.FunctionDef, class_node: ast.ClassDef) -> bool:
+    """Check if method exists in class by name"""
+    return find_method_in_class(method.name, class_node) is not None
+
+def get_container_for_node(node: ast.AST, containers: dict[str, NodeContainer]):
+    """Find which container has the given node and return (file_path, container)"""
+    for file_path, container in containers.items():
+        if node in container.nodes:
+            return file_path, container
+    return None, None
+
+
+def class_redefines_field(class_node: ClassDef, field_name: str) -> bool:
+    """Check if class redefines the given field in its __init__"""
+    for node in class_node.body:
+        if isinstance(node, FunctionDef) and node.name == "__init__":
+            for stmt in node.body:
+                if (isinstance(stmt, Assign) and 
+                    isinstance(stmt.targets[0], Attribute) and
+                    isinstance(stmt.targets[0].value, Name) and
+                    stmt.targets[0].value.id == 'self' and
+                    stmt.targets[0].attr == field_name):
+                    return True
+    return False
+
+def update_field_references(class_node: ClassDef, old_name: str, new_name: str):
+    """Update all references to the field in a class's methods"""
+    for node in class_node.body:
+        if isinstance(node, FunctionDef):
+            for stmt in ast.walk(node):
+                if (isinstance(stmt, Attribute) and 
+                    isinstance(stmt.value, Name) and
+                    stmt.value.id == 'self' and 
+                    stmt.attr == old_name):
+                    stmt.attr = new_name
+
+def get_all_subclasses(class_node: ClassDef, containers: dict[str, NodeContainer]) -> list[ClassDef]:
+    """Get all direct subclasses from any file in the project"""
+    subclasses = []
+    for container in containers.values():
+        for node in container.nodes:
+            if isinstance(node, ClassDef):
+                if any(
+                    container.lookup_alias(base) == class_node.name
+                    for base in get_str_bases(node.bases)
+                ):
+                    subclasses.append(node)
+    return subclasses
+
+def update_descendant_chain(class_node: ClassDef, old_name: str, new_name: str, containers: dict[str, NodeContainer]):
+    """Recursively update field references in descendants until a redefinition is found"""
+    subclasses = get_all_subclasses(class_node, containers)
+    
+    for subclass in subclasses:
+        if class_redefines_field(subclass, old_name):
+            continue
+        
+        update_field_references(subclass, old_name, new_name)
+        update_descendant_chain(subclass, old_name, new_name, containers)
+
+def create_super_init_call() -> ast.Expr:
+    """Create ast node for super().__init__() call"""
+    return ast.Expr(
+        value=ast.Call(
+            func=ast.Attribute(
+                value=ast.Call(
+                    func=ast.Name(id='super', ctx=ast.Load()),
+                    args=[],
+                    keywords=[]
+                ),
+                attr='__init__',
+                ctx=ast.Load()
+            ),
+            args=[],
+            keywords=[]
+        )
+    )
+
+def find_method_in_class(method_name: str, class_node: ast.ClassDef):
+    """Find method with given name in class"""
+    for node in class_node.body:
+        if isinstance(node, ast.FunctionDef) and node.name == method_name:
+            return node
+    return None
+
+def method_exists_in_class(method: ast.FunctionDef, class_node: ast.ClassDef) -> bool:
+    """Check if method exists in class by name"""
+    return find_method_in_class(method.name, class_node) is not None
+
+def get_container_for_node(node: ast.AST, containers):
+    """Find which container has the given node and return (file_path, container)"""
+    for file_path, container in containers.items():
+        if node in container.nodes:
+            return file_path, container
+    return None, None
+
 
 def find_normal_methods(body: list[ast.stmt]):
     return [item for item in body if isinstance(item, ast.FunctionDef) and not (item.name.startswith("__") and item.name.endswith("__"))]
@@ -25,7 +133,6 @@ def find_instance_fields(body: list[ast.stmt]) -> list[ast.Assign]:
     return fields
 
 
-# In ast_utils.py
 def is_super_init_call(stmt: ast.stmt) -> bool:
     """Check if a statement is a call to super().__init__()."""
     return (
@@ -90,6 +197,29 @@ def get_str_bases(bases: list[ast.expr]):
             yield base.attr
         else:
             raise Exception(f"{base} is not an ast.Name or ast.Attribute")
+        
+class DependencyVisitor(ast.NodeVisitor):
+    def __init__(self):
+        super().__init__()
+        self.dependencies = set()
+
+    def visit_Attribute(self, node):
+        if isinstance(node.value, ast.Name) and node.value.id == 'self':
+            self.dependencies.add(node.attr)
+        self.generic_visit(node)
+        
+    def visit_Call(self, node):
+        if isinstance(node.func, ast.Attribute) and \
+           isinstance(node.func.value, ast.Name) and \
+           node.func.value.id == 'self':
+            self.dependencies.add(node.func.attr)
+        self.generic_visit(node)
+
+def find_self_dependencies(ast_node: ast.AST) -> set[str]:
+    """Find all attribute and method references through 'self' in an AST node"""
+    visitor = DependencyVisitor()
+    visitor.visit(ast_node)
+    return visitor.dependencies
 
 
 class MethodRenamer(ast.NodeTransformer):

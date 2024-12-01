@@ -1,14 +1,18 @@
+import os
 import ast
 from pprint import pprint
 from core.parsing import parse_library
-from core.refactor import REFACTORING_TYPES, PushDownField, PullUpField, IncreaseFieldAccess, DecreaseFieldAccess, \
+from core.refactor import REFACTORING_TYPES, PushDownMethod, PushDownField, PullUpField, IncreaseFieldAccess, DecreaseFieldAccess, \
     ExtractHierarchy, CollapseHierarchy
 
 
-def test_refactoring(library_path, refactoring_type=None):
-    """Test a specific or random src on a library"""
+def test_refactoring(library_path, refactoring_type=None, output_dir="refactored_library"):
+    """Test a specific or random src on a library and save refactored code to a new directory."""
     # Parse the library
     node_container_dict = parse_library(library_path)
+
+    # Ensure output directory exists
+    os.makedirs(output_dir, exist_ok=True)
 
     # Collect all classes
     classes = []
@@ -22,9 +26,8 @@ def test_refactoring(library_path, refactoring_type=None):
         print(f"- {name} in {file_path}")
     print()
 
-    # Try src each class
     results = []
-    for class_location in classes:  # Tries to do src on all classes
+    for class_location in classes:  
         file_path, idx, class_name = class_location
 
         # Use specified src type or try all types
@@ -43,21 +46,22 @@ def test_refactoring(library_path, refactoring_type=None):
             if refactor.is_possible():
                 print("Refactoring is possible")
 
-                # Show original code
-                print("\nBefore src:")
-                for node in node_container_dict[file_path].nodes:
-                    print(ast.unparse(node))
-                    print("-" * 40)
-
-                # Do src
+                # Do refactoring
                 refactor.do()
 
-                # Show refactored code
-                print("\nAfter src:")
-                for item in refactor.result.values():
-                    for node in item.nodes:
-                        print(ast.unparse(node))
-                        print("-" * 40)
+                # Write the refactored code to the output directory
+                for file_path, item in refactor.result.items():
+                    # Determine the relative path to preserve structure
+                    relative_path = os.path.relpath(file_path, start=library_path)
+                    output_path = os.path.join(output_dir, relative_path)
+
+                    # Ensure the subdirectories exist
+                    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+                    # Write refactored code
+                    with open(output_path, "w") as f:
+                        for node in item.nodes:
+                            f.write(ast.unparse(node) + "\n\n")
 
                 # Store result
                 results.append({
@@ -65,22 +69,17 @@ def test_refactoring(library_path, refactoring_type=None):
                     'src': refactoring_class.__name__,
                     'success': True
                 })
+        break
+                
 
-                # # Test undo
-                # print("\nTesting undo...")
-                # refactor.undo()
-                # print("After undo:")
-                # for node in node_container_dict[file_path].nodes:
-                #     print(ast.unparse(node))
-                #     print("-" * 40)
+            # else:
+            #     print(f"Refactoring not possible")
+            #     results.append({
+            #         'class_name': class_name,
+            #         'src': refactoring_class.__name__,
+            #         'success': False
+            #     })
 
-            else:
-                print(f"Refactoring not possible")
-                results.append({
-                    'class_name': class_name,
-                    'src': refactoring_class.__name__,
-                    'success': False
-                })
 
     # Print summary
     print("\nTest Summary:")
@@ -91,34 +90,5 @@ def test_refactoring(library_path, refactoring_type=None):
 
 
 if __name__ == '__main__':
-    # Test data structure for fields
-    #     example_code = """
-    # class Animal:
-    #     def __init__(self):
-    #         self.alive = True
-
-    # class Mammal(Animal):
-    #     def __init__(self):
-    #         self.warm_blooded = True
-    #         super().__init__()
-    #         # Complex initialization logic
-    #         if self.warm_blooded:
-    #             self.fur_type = "thick"
-    #         for i in range(self.metabolism_rate()):
-    #             self.eat()
-    #         try:
-    #             self.initialize_system()
-    #         except:
-    #             self.default_init()
-    # class Human(Mammal):
-    #     def __init__(self):
-    #         super().__init__()
-    #         self.single = False
-    #     """
-
-    #     # Write example code to a test file
-    #     with open("src/target_libraries/test_library/test_code.py", "w") as f:
-    #         f.write(example_code)
-
-    # Test src types; test if actually works with imports
-    test_refactoring("src/target_libraries/pushdownfield_test", PushDownField)
+    # Test example
+    test_refactoring("refactoring/target_libraries/decreasefieldaccess_test", IncreaseFieldAccess)

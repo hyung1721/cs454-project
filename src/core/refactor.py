@@ -1,3 +1,4 @@
+import os
 import ast
 import copy
 from abc import ABC, abstractmethod
@@ -9,7 +10,9 @@ from src.core.parsing import NodeContainer
 from src.utils.ast_utils import find_normal_methods, find_instance_fields, MethodRenamer, \
     MethodOccurrenceChecker, InstanceFieldOccurrenceChecker, InitMethodInjector, SelfMethodOccurrenceReplacer, \
     is_direct_self_attr, SelfAttributeOccurrenceReplacer, check_inherit_abc, AbstractMethodDecoratorChecker, \
-    is_super_init_call, get_str_bases
+    is_super_init_call, get_str_bases, create_super_init_call, DependencyVisitor, find_self_dependencies, \
+    class_redefines_field, update_field_references, get_all_subclasses, \
+    update_descendant_chain, find_method_in_class, method_exists_in_class, get_container_for_node
 
 
 class Refactor(ABC):
@@ -293,15 +296,14 @@ class PullUpField(Refactor):
         # Find fields in target class
         self.fields = find_instance_fields(self.target_class_node.body)
         
-        # Find immediate superclass
-        # Only finds the first superclass (doesn't work for multiple superclasses)
-        self.superclass = None
+        # Find immediate superclass 
         superclass_names = [
             self.target_node_container.lookup_alias(base)
             for base in get_str_bases(self.target_class_node.bases)
         ]
         
         # Look for superclass definition
+        self.superclass = None
         for node_container in self.result.values():
             for node in node_container.nodes:
                 if isinstance(node, ast.ClassDef) and node.name in superclass_names:
@@ -310,63 +312,28 @@ class PullUpField(Refactor):
             if self.superclass:
                 break
 
-    def create_init_method(self, has_superclass: bool) -> ast.FunctionDef:
-        """Create new __init__ method, with super().__init__() only if class has superclass"""
-        # Basic __init__ structure
-        init_method = ast.FunctionDef(
-            name='__init__',
-            args=ast.arguments(
-                posonlyargs=[],
-                args=[ast.arg(
-                    arg='self', 
-                    lineno=1, 
-                    col_offset=0,
-                    end_lineno=1,
-                    end_col_offset=4,
-                    annotation=None,
-                )],
-                kwonlyargs=[],
-                kw_defaults=[],
-                defaults=[],
-                vararg=None,
-                kwarg=None
-            ),
-            body=[],  # We'll fill this based on whether there's a superclass
-            decorator_list=[],
-            lineno=1,
-            col_offset=4,
-            end_lineno=3,
-            end_col_offset=4
-        )
+    def get_field_info(self, field_node: ast.Assign):
+        """Get field name and value"""
+        field_name = field_node.targets[0].attr
+        field_value = ast.unparse(field_node.value)
+        return field_name, field_value
 
-        # Add super().__init__() call only if class has a superclass
-        if has_superclass:
-            super_call = ast.Expr(
-                value=ast.Call(
-                    func=ast.Attribute(
-                        value=ast.Call(
-                            func=ast.Name(id='super', ctx=ast.Load()),
-                            args=[],
-                            keywords=[]
-                        ),
-                        attr='__init__',
-                        ctx=ast.Load()
-                    ),
-                    args=[],
-                    keywords=[]
-                ),
-                lineno=2,
-                col_offset=8,
-                end_lineno=2,
-                end_col_offset=23,
-            )
-            init_method.body.append(super_call)
-
-        return init_method
-
-    def get_field_value(self, field_node: ast.Assign) -> str:
-        """Get string representation of field's value"""
-        return ast.unparse(field_node.value)
+    def get_independent_fields(self):
+        """Return fields that don't depend on other fields or methods in the class"""
+        independent_fields = []
+        
+        for field in self.fields:
+            field_name = field.targets[0].attr
+            
+            # Get dependencies and remove self reference if exists
+            dependencies = find_self_dependencies(field.value)
+            dependencies.discard(field_name)
+            
+            # If no dependencies found, field is independent
+            if not dependencies:
+                independent_fields.append(field)
+                
+        return independent_fields
 
     def find_sibling_classes(self) -> list[ast.ClassDef]:
         """Find other classes that inherit from same superclass"""
@@ -374,40 +341,15 @@ class PullUpField(Refactor):
         if not self.superclass:
             return siblings
             
-        for node_container in self.result.values():
-            for node in node_container.nodes:
+        for container in self.result.values():
+            for node in container.nodes:
                 if isinstance(node, ast.ClassDef):
-                    # Check if this class inherits from same superclass
                     if any(
-                            self.target_node_container.lookup_alias(base) == self.superclass.name
+                            container.lookup_alias(base) == self.superclass.name
                             for base in get_str_bases(node.bases)
                     ):
                         siblings.append(node)
         return siblings
-
-    def get_field_info(self, field_node: ast.Assign):
-        """Get field name and value"""
-        field_name = field_node.targets[0].attr
-        field_value = self.get_field_value(field_node)
-        return field_name, field_value
-
-    def check_field_in_siblings(self, field_name: str, field_value: str) -> bool:
-        """Check if field exists with same value in sibling classes"""
-        # 같은 field가 sibling에 존재하는데 다른 값이면 src 불가:
-        # 같은 field가 없거나, 있으면 같은 값이어야 진행
-        # 아니면 같은 값을 가진 subclass에서만 삭제하고 올리면 되려나?
-        can_refactor = True
-        siblings = self.find_sibling_classes()
-        for sibling in siblings:
-            if sibling == self.target_class_node:
-                continue
-                
-            sibling_fields = find_instance_fields(sibling.body)
-            for field in sibling_fields:
-                sib_name, sib_value = self.get_field_info(field)
-                if sib_name == field_name and sib_value != field_value:
-                    can_refactor = False
-        return can_refactor
 
     def is_field_in_parent(self, field_name: str) -> bool:
         """Check if field is already defined in parent class"""
@@ -422,12 +364,14 @@ class PullUpField(Refactor):
         if not (len(self.fields) >= 1 and self.superclass):
             return False
 
-        # Check each field
-        for field in self.fields:
-            field_name, field_value = self.get_field_info(field)
-            
-            # Field shouldn't exist in parent # If field exists with different value in siblings, can't refactor
-            if (not self.is_field_in_parent(field_name) and self.check_field_in_siblings(field_name, field_value)):
+        independent_fields = self.get_independent_fields()
+        if not independent_fields:
+            return False
+
+        # Only check if field exists in parent
+        for field in independent_fields:
+            field_name, _ = self.get_field_info(field)
+            if not self.is_field_in_parent(field_name):
                 return True
                 
         return False
@@ -436,287 +380,258 @@ class PullUpField(Refactor):
         if not self.is_possible():
             return
 
-        # refactored = False
-        remaining_fields = list(self.fields)
-        while remaining_fields: # Randomly selects field.
-            field = choice(remaining_fields)
-            remaining_fields.remove(field)
-            field_name, field_value = self.get_field_info(field)
-            print(f"field_name: {field_name}")
-            
-            if (not self.is_field_in_parent(field_name) and 
-                self.check_field_in_siblings(field_name, field_value)):
+        independent_fields = self.get_independent_fields()
+        field = choice(independent_fields)
+        field_name, field_value = self.get_field_info(field)
+        
+        # Add field to parent's __init__
+        init_method = find_method_in_class("__init__", self.superclass)
+        
+        if init_method is None:
+            has_superclass = bool(self.superclass.bases)
+            if has_superclass:
+                init_body = [create_super_init_call()]
+            else:
+                init_body = []
                 
-                # Add field to parent's __init__
-                init_method = next(
-                    (node for node in self.superclass.body
-                     if isinstance(node, ast.FunctionDef) and 
-                     node.name == "__init__"),
-                    None
-                )
+            init_method = ast.FunctionDef(
+                name='__init__',
+                args=ast.arguments(
+                    posonlyargs=[],
+                    args=[ast.arg(arg='self')],
+                    kwonlyargs=[],
+                    kw_defaults=[],
+                    defaults=[]
+                ),
+                body=init_body,
+                decorator_list=[]
+            )
+            self.superclass.body.insert(0, init_method)
+        
+        new_field = copy.deepcopy(field)
+        init_method.body.append(new_field)
+        
+        # Only remove field from siblings that have the same value
+        siblings = self.find_sibling_classes()
+        for sibling in siblings:
+            # Find which file/container has this sibling
+            sibling_file, sibling_container = get_container_for_node(sibling, self.result)
+            if not sibling_container:
+                continue
                 
-                if init_method is None:
-                    has_superclass = len(self.superclass.bases) > 0
-                    init_method = self.create_init_method(has_superclass)
-                    self.superclass.body.insert(0, init_method)
-                
-                new_field = copy.deepcopy(field)
-                init_method.body.append(new_field)
-                
-                # Remove field from all subclasses
-                siblings = self.find_sibling_classes()
-                for sibling in siblings:
-                    sibling_init = next(
-                        (node for node in sibling.body
-                         if isinstance(node, ast.FunctionDef) and 
-                         node.name == "__init__"),
-                        None
-                    )
-                    if sibling_init:
-                        for stmt in sibling_init.body[:]:
-                            if (isinstance(stmt, ast.Assign) and
-                                isinstance(stmt.targets[0], ast.Attribute) and
-                                stmt.targets[0].attr == field_name):
-                                sibling_init.body.remove(stmt)
-                
-                # refactored = True
-                break
-
-        # self.result[self.file_path].refactored = refactored
-
-# Python doesn't strictly enforce this, so may be a problem. 
-class IncreaseFieldAccess(Refactor):
-   def __init__(self, base: dict[str, NodeContainer], location):
-       super().__init__(base, location)
-       self.fields = find_instance_fields(self.target_class_node.body)
-       # Only get fields that aren't private (don't start with __)
-       self.increasable_fields = [
-           field for field in self.fields
-           if not field.targets[0].attr.startswith("__")
-       ]
-
-   def is_possible(self):
-       return len(self.increasable_fields) >= 1
-
-   def do(self):
-       if not self.is_possible():
-           return
-
-       field_node = choice(self.increasable_fields)
-       old_name = field_node.targets[0].attr
-       new_name = "_" + old_name  # Add underscore
-       # refactored = False
-
-       # Change field name in target class's __init__
-       for node in self.target_class_node.body:
-           if isinstance(node, ast.FunctionDef) and node.name == "__init__":
-               for stmt in node.body:
-                   if (isinstance(stmt, ast.Assign) and 
-                       isinstance(stmt.targets[0], ast.Attribute) and
-                       stmt.targets[0].attr == old_name):
-                       stmt.targets[0].attr = new_name
-                       # refactored = True
-
-               # Also update any field usage within __init__
-               for stmt in ast.walk(node):
-                   if (isinstance(stmt, ast.Attribute) and 
-                       isinstance(stmt.value, ast.Name) and
-                       stmt.value.id == 'self' and 
-                       stmt.attr == old_name):
-                       stmt.attr = new_name
-
-       # Update field usage in all methods of target class and subclasses
-       classes_to_update = [self.target_class_node] + self.subclasses
-       for class_node in classes_to_update:
-           for node in class_node.body:
-               if isinstance(node, ast.FunctionDef):
-                   for stmt in ast.walk(node):
-                       if (isinstance(stmt, ast.Attribute) and 
-                           isinstance(stmt.value, ast.Name) and
-                           stmt.value.id == 'self' and 
-                           stmt.attr == old_name):
-                           stmt.attr = new_name
-
-       # self.result[self.file_path].refactored = refactored
-
+            sibling_init = find_method_in_class("__init__", sibling)
+            if sibling_init:
+                for stmt in sibling_init.body[:]:
+                    if (isinstance(stmt, ast.Assign) and
+                        isinstance(stmt.targets[0], ast.Attribute) and
+                        stmt.targets[0].attr == field_name and
+                        ast.unparse(stmt.value) == field_value):
+                        sibling_init.body.remove(stmt)
 
 class DecreaseFieldAccess(Refactor):
-   def __init__(self, base: dict[str, NodeContainer], location):
-       super().__init__(base, location)
-       self.fields = find_instance_fields(self.target_class_node.body)
-       # Only get fields that start with at least one underscore
-       self.decreasable_fields = [
-           field for field in self.fields
-           if field.targets[0].attr.startswith("_")
-       ]
+    def __init__(self, base: dict[str, NodeContainer], location):
+        super().__init__(base, location)
+        self.fields = find_instance_fields(self.target_class_node.body)
+        self.decreasable_fields = [
+            field for field in self.fields
+            if not field.targets[0].attr.startswith("__")
+        ]
 
-   def is_possible(self):
-       return len(self.decreasable_fields) >= 1
+    def is_possible(self):
+        return len(self.decreasable_fields) >= 1
 
-   def do(self):
-       if not self.is_possible():
-           return
+    def do(self):
+        if not self.is_possible():
+            return
 
-       field_node = choice(self.decreasable_fields)
-       old_name = field_node.targets[0].attr
-       new_name = old_name[1:] if old_name.startswith('_') else old_name
-       # refactored = False
+        field_node = choice(self.decreasable_fields)
+        old_name = field_node.targets[0].attr
+        new_name = "_" + old_name
 
-       # Change field name in target class's __init__
-       for node in self.target_class_node.body:
-           if isinstance(node, ast.FunctionDef) and node.name == "__init__":
-               for stmt in node.body:
-                   if (isinstance(stmt, ast.Assign) and 
-                       isinstance(stmt.targets[0], ast.Attribute) and
-                       stmt.targets[0].attr == old_name):
-                       stmt.targets[0].attr = new_name
-                       # refactored = True
+        # Update target class
+        update_field_references(self.target_class_node, old_name, new_name)
 
-               # Also update any field usage within __init__
-               for stmt in ast.walk(node):
-                   if (isinstance(stmt, ast.Attribute) and 
-                       isinstance(stmt.value, ast.Name) and
-                       stmt.value.id == 'self' and 
-                       stmt.attr == old_name):
-                       stmt.attr = new_name
+        # Update entire descendant chain until redefinitions
+        update_descendant_chain(
+            self.target_class_node, 
+            old_name, 
+            new_name, 
+            self.result
+        )
 
-       # Update field usage in all methods of target class and subclasses
-       classes_to_update = [self.target_class_node] + self.subclasses
-       for class_node in classes_to_update:
-           for node in class_node.body:
-               if isinstance(node, ast.FunctionDef):
-                   for stmt in ast.walk(node):
-                       if (isinstance(stmt, ast.Attribute) and 
-                           isinstance(stmt.value, ast.Name) and
-                           stmt.value.id == 'self' and 
-                           stmt.attr == old_name):
-                           stmt.attr = new_name
 
-       # self.result[self.file_path].refactored = refactored
+class IncreaseFieldAccess(Refactor):
+    def __init__(self, base: dict[str, NodeContainer], location):
+        super().__init__(base, location)
+        self.fields = find_instance_fields(self.target_class_node.body)
+        self.increasable_fields = [
+            field for field in self.fields
+            if field.targets[0].attr.startswith("_")
+        ]
+
+    def is_possible(self):
+        return len(self.increasable_fields) >= 1
+
+    def do(self):
+        if not self.is_possible():
+            return
+
+        field_node = choice(self.increasable_fields)
+        old_name = field_node.targets[0].attr
+        new_name = old_name[1:]  # Remove one underscore
+
+        # Update target class
+        update_field_references(self.target_class_node, old_name, new_name)
+
+        # Update entire descendant chain until redefinitions
+        update_descendant_chain(
+            self.target_class_node, 
+            old_name, 
+            new_name, 
+            self.result
+        )
+
 
 
 ## Class Level Refactorings
-# Just accounts for simple field assignments and not all kinds of initializations
-# 1. Is it okay to just do pass if there are no common methods and fields? Shouldn't we do super init?
 class ExtractHierarchy(Refactor):
     def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
-        # Initialize dictionaries to store methods and fields for each subclass
-        self.subclass_methods = {}  # class_node -> list of method nodes (excluding __init__)
-        self.subclass_fields = {}  # class_node -> list of field assignments
+        # Track methods and fields for each subclass
+        self.subclass_methods = {
+            node: find_normal_methods(node.body) 
+            for node in self.subclasses
+        }
+        self.subclass_fields = {
+            node: find_instance_fields(node.body)
+            for node in self.subclasses
+        }
 
-        for node in self.subclasses:
-            # Collect methods excluding __init__
-            methods = [n for n in node.body if isinstance(n, ast.FunctionDef) and n.name != '__init__']
-            self.subclass_methods[node] = methods
-            # Collect instance fields
-            self.subclass_fields[node] = find_instance_fields(node.body)
+    def is_possible(self):
+        return len(self.subclasses) >= 2
 
-    def count_common_features(self, class1: ast.ClassDef, class2: ast.ClassDef) -> tuple[int, list, list]:
-        """Count common methods and fields between two classes."""
-        # Get methods from both classes
-        methods1 = {m.name: m for m in self.subclass_methods[class1]}
-        methods2 = {m.name: m for m in self.subclass_methods[class2]}
-        common_methods = []
+    def do(self):
+        if not self.is_possible():
+            return
 
-        # Compare methods with the same name for identical bodies
-        for name in methods1:
-            if name in methods2:
-                if ast.dump(methods1[name]) == ast.dump(methods2[name]):
-                    common_methods.append(methods1[name])
+        # Find group of similar classes and their common features
+        group, shared_methods, shared_fields = self._find_best_subclass_group()
 
-        # Get fields from both classes
-        fields1 = {self.get_field_info(f)[0]: f for f in self.subclass_fields[class1]}
-        fields2 = {self.get_field_info(f)[0]: f for f in self.subclass_fields[class2]}
-        common_fields = []
+        if not group:
+            group = self.subclasses
 
-        # Compare fields with the same name and value
-        for name in set(fields1.keys()) & set(fields2.keys()):
-            if self.get_field_info(fields1[name])[1] == self.get_field_info(fields2[name])[1]:
-                common_fields.append(fields1[name])
+        # Create and insert new intermediate class
+        new_class_name = f"RefactoredSub{self.target_class_node.name}"
+        new_class = self._create_intermediate_class(new_class_name, shared_methods, shared_fields)
+        
+        # Add new class after target class
+        target_idx = self.result[self.file_path].nodes.index(self.target_class_node)
+        self.result[self.file_path].nodes.insert(target_idx + 1, new_class)
 
-        # Total common features
-        total_common_features = len(common_methods) + len(common_fields)
-        return total_common_features, common_methods, common_fields
+        # Update each subclass in the group
+        for subclass in group:
+            # Find container for this subclass
+            file_path, container = get_container_for_node(subclass, self.result)
+            if not container:
+                continue
 
-    def get_field_info(self, field_node: ast.Assign) -> tuple[str, str]:
-        """Extract field name and value from an assignment node."""
-        field_name = field_node.targets[0].attr
-        field_value = ast.unparse(field_node.value)
-        return field_name, field_value
+            # Handle import if needed
+            if file_path != self.file_path:
+                self._add_import(container, new_class_name, file_path)
 
-    def find_best_subclass_group(self) -> tuple[set[ast.ClassDef], list[ast.FunctionDef], list[ast.Assign]]:
-        """Identify the largest group of subclasses sharing common features."""
-        if len(self.subclasses) < 2:
-            return set(), [], []
+            # Update inheritance
+            self._update_inheritance(subclass, container, new_class_name) 
+            
+            # Remove features that were moved to intermediate class
+            self._remove_common_features(subclass, shared_methods, shared_fields)
+            
+            # Ensure proper initialization: Don't need for static analysis?
+            # self._ensure_proper_init(subclass)
 
-        # Initialize variables to track the best group
-        best_score = -1
+    def _find_best_subclass_group(self, min_similarity=0.3):
+        """Find subclasses with sufficient common features"""
+
+        # Find most similar pair first
         best_pair = None
-        best_methods = []
-        best_fields = []
+        best_score = -1
+        best_features = None
 
-        # Compare all pairs to find the best initial pair
         for c1, c2 in combinations(self.subclasses, 2):
-            score, methods, fields = self.count_common_features(c1, c2)
+            score, methods, fields = self._count_common_features(c1, c2)
             if score > best_score:
                 best_score = score
                 best_pair = (c1, c2)
-                best_methods = methods
-                best_fields = fields
+                best_features = (methods, fields)
 
-        if not best_pair:
-            return set(), [], []
+        if not best_pair or best_score == 0:
+            print("No pair of classes have anything in common")
+            return set(), [], [] 
 
-        # Start building the group with the best pair
-        best_group = set(best_pair)
-        current_methods = best_methods
-        current_fields = best_fields
+        # Start group with best pair
+        group = {best_pair[0], best_pair[1]}
+        methods, fields = best_features
 
-        # Try adding more classes to the group
-        for cls in set(self.subclasses) - best_group:
-            # Check if the class shares all current common methods
-            methods_in_cls = {m.name: m for m in self.subclass_methods[cls]}
-            shares_all_methods = all(
-                cm.name in methods_in_cls and ast.dump(cm) == ast.dump(methods_in_cls[cm.name])
-                for cm in current_methods
-            )
+        # Try adding other classes that are similar enough
+        remaining = set(self.subclasses) - group
+        for cls in remaining:
+            matches = self._count_matching_features(cls, methods, fields)
+            total = len(methods) + len(fields)
+            if total > 0 and matches / total >= min_similarity:
+                group.add(cls)
 
-            # Check if the class shares all current common fields
-            fields_in_cls = {self.get_field_info(f)[0]: f for f in self.subclass_fields[cls]}
-            shares_all_fields = all(
-                field_name in fields_in_cls and
-                field_value == self.get_field_info(fields_in_cls[field_name])[1]
-                for field_name, field_value in (self.get_field_info(cf) for cf in current_fields)
-            )
+        return group, methods, fields
 
-            # Add class to the group if it shares all common features
-            if shares_all_methods and shares_all_fields:
-                best_group.add(cls)
+    def _count_common_features(self, class1: ast.ClassDef, class2: ast.ClassDef):
+        """Count features (methods and fields) common to both classes"""
+        common_methods = []
+        common_fields = []
 
-        return best_group, current_methods, current_fields
+        # Compare methods
+        methods1 = {m.name: m for m in self.subclass_methods[class1]}
+        methods2 = {m.name: m for m in self.subclass_methods[class2]}
+        
+        for name, method1 in methods1.items():
+            if name in methods2 and ast.dump(method1) == ast.dump(methods2[name]):
+                common_methods.append(method1)
 
-    def create_super_init_call(self) -> ast.Expr:
-        """Create a super().__init__() call expression."""
-        return ast.Expr(
-            value=ast.Call(
-                func=ast.Attribute(
-                    value=ast.Call(
-                        func=ast.Name(id='super', ctx=ast.Load()),
-                        args=[],
-                        keywords=[]
-                    ),
-                    attr='__init__',
-                    ctx=ast.Load()
-                ),
-                args=[],
-                keywords=[]
-            )
-        )
+        # Compare fields
+        fields1 = {f.targets[0].attr: f for f in self.subclass_fields[class1]}
+        fields2 = {f.targets[0].attr: f for f in self.subclass_fields[class2]}
+        
+        for name, field1 in fields1.items():
+            if name in fields2 and ast.dump(field1.value) == ast.dump(fields2[name].value):
+                common_fields.append(field1)
 
-    def create_new_init_method(self, fields: list[ast.Assign]) -> ast.FunctionDef:
-        """Create a new __init__ method with super().__init__() and field assignments."""
-        return ast.FunctionDef(
+        return len(common_methods) + len(common_fields), common_methods, common_fields
+
+    def _count_matching_features(self, cls: ast.ClassDef, methods: list, fields: list):
+        """Count how many of the given features match in the class"""
+        matches = 0
+        
+        # Check methods
+        cls_methods = {m.name: m for m in self.subclass_methods[cls]}
+        for method in methods:
+            if (method.name in cls_methods and 
+                ast.dump(method) == ast.dump(cls_methods[method.name])):
+                matches += 1
+
+        # Check fields
+        cls_fields = {f.targets[0].attr: f for f in self.subclass_fields[cls]}
+        for field in fields:
+            field_name = field.targets[0].attr
+            if (field_name in cls_fields and 
+                ast.dump(field.value) == ast.dump(cls_fields[field_name].value)):
+                matches += 1
+
+        return matches
+
+    def _create_intermediate_class(self, name: str, methods: list, fields: list):
+        """Create new intermediate class with the shared features"""
+        # Create __init__ method
+        init_body = [create_super_init_call()]  # Using utility function
+        init_body.extend(copy.deepcopy(fields))
+        
+        init_method = ast.FunctionDef(
             name='__init__',
             args=ast.arguments(
                 posonlyargs=[],
@@ -725,197 +640,189 @@ class ExtractHierarchy(Refactor):
                 kw_defaults=[],
                 defaults=[]
             ),
-            body=[self.create_super_init_call()] + fields,
+            body=init_body,
             decorator_list=[]
         )
 
-    def create_new_class(self, name: str, methods: list[ast.FunctionDef], fields: list[ast.Assign]) -> ast.ClassDef:
-        """Create a new class with the given methods and fields."""
-        body = methods.copy()
-        if fields:
-            init_method = self.create_new_init_method(fields)
-            body.insert(0, init_method)
-        elif not body:
-            body = [ast.Pass()]
+        # Create class body
+        body = [init_method]
+        body.extend(copy.deepcopy(methods))
 
-        return ast.ClassDef(
+        # Create class
+        new_class = ast.ClassDef(
             name=name,
             bases=[ast.Name(id=self.target_class_node.name, ctx=ast.Load())],
             keywords=[],
-            body=body,
+            body=body or [ast.Pass()],
             decorator_list=[]
         )
 
-    def ensure_subclass_init_calls_super(self, subclass: ast.ClassDef):
-        """Ensure the subclass's __init__ method calls super().__init__()."""
-        init_method = next(
-            (m for m in subclass.body if isinstance(m, ast.FunctionDef) and m.name == '__init__'),
-            None
+        return ast.fix_missing_locations(new_class)
+
+    def _add_import(self, container: NodeContainer, class_name: str, file_path: str):
+        """Add import statement if needed"""
+        # Check if import already exists
+        for node in container.nodes:
+            if isinstance(node, ast.ImportFrom):
+                if any(alias.name == class_name for alias in node.names):
+                    return
+
+        # Create new import
+        module_name = os.path.splitext(os.path.basename(self.file_path))[0]
+        import_node = ast.ImportFrom(
+            module=module_name,
+            names=[ast.alias(name=class_name, asname=None)],
+            level=0
         )
-        if init_method and not any(is_super_init_call(stmt) for stmt in init_method.body):
-            init_method.body.insert(0, self.create_super_init_call())
+        container.nodes.insert(0, import_node)
 
-    def is_possible(self):
-        """Check if src is possible."""
-        return len(self.subclasses) >= 2
+    def _update_inheritance(self, subclass: ast.ClassDef, container: NodeContainer, new_class_name: str):
+        """Update the inheritance of a subclass"""
+        for base in subclass.bases:
+            if isinstance(base, ast.Name):
+                if container.lookup_alias(base.id) == self.target_class_node.name:
+                    base.id = new_class_name
 
-    def do(self):
-        """Perform the Extract Hierarchy src."""
-        if not self.is_possible():
-            return  # Refactoring not possible
-
-        # Find best group using greedy approach
-        group, methods, fields = self.find_best_subclass_group()
-
-        if group:
-            new_class_name = f"Sub{self.target_class_node.name}"
-
-            # Create new class with common features
-            new_class = self.create_new_class(
-                new_class_name,
-                copy.deepcopy(methods),
-                copy.deepcopy(fields)
-            )
-
-            # Update selected subclasses
-            for subclass in group:
-                # Update inheritance
-                subclass.bases = [ast.Name(id=new_class_name, ctx=ast.Load())]
-
-                # Remove common methods and fields
-                self.remove_common_features(subclass, methods, fields)
-                # Ensure __init__ calls super().__init__()
-                self.ensure_subclass_init_calls_super(subclass)
-
-            # Add new class after the target class
-            insert_idx = next(
-                i for i, node in enumerate(self.result[self.file_path].nodes)
-                if node == self.target_class_node
-            ) + 1
-            self.result[self.file_path].nodes.insert(insert_idx, new_class)
-
-            # Fix missing locations in the modified nodes
-            for item in self.result.values():
-                for idx, node in enumerate(item.nodes):
-                    item.nodes[idx] = ast.fix_missing_locations(node)
-
-            # self.result[self.file_path].refactored = True
-
-    def remove_common_features(self, cls: ast.ClassDef,
-                               methods: list[ast.FunctionDef],
-                               fields: list[ast.Assign]):
-        """Remove common methods and fields from the subclass."""
-        # Remove common methods
-        common_method_names = {m.name for m in methods}
-        cls.body = [
-            node for node in cls.body
+    def _remove_common_features(self, subclass: ast.ClassDef, methods: list, fields: list):
+        """Remove features that were moved to intermediate class"""
+        # Remove methods
+        method_names = {m.name for m in methods}
+        subclass.body = [
+            node for node in subclass.body
             if not (
-                    isinstance(node, ast.FunctionDef) and
-                    node.name in common_method_names and
-                    any(ast.dump(node) == ast.dump(m) for m in methods)
+                isinstance(node, ast.FunctionDef) and 
+                node.name in method_names and
+                any(ast.dump(node) == ast.dump(m) for m in methods)
             )
         ]
 
-        # Remove common fields from __init__
+        # Remove fields from __init__
         init_method = next(
-            (m for m in cls.body if isinstance(m, ast.FunctionDef) and m.name == "__init__"),
+            (m for m in subclass.body if isinstance(m, ast.FunctionDef) and m.name == "__init__"),
             None
         )
         if init_method:
-            common_field_info = {self.get_field_info(f) for f in fields}
+            field_info = {(f.targets[0].attr, ast.dump(f.value)) for f in fields}
             init_method.body = [
                 stmt for stmt in init_method.body
                 if not (
-                        isinstance(stmt, ast.Assign) and
-                        self.get_field_info(stmt) in common_field_info
+                    isinstance(stmt, ast.Assign) and
+                    isinstance(stmt.targets[0], ast.Attribute) and
+                    (stmt.targets[0].attr, ast.dump(stmt.value)) in field_info
                 )
             ]
-
 
 class CollapseHierarchy(Refactor):
     def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
-        # Get target's parent class
-        self.parent_class = None
-        parent_names = [
+        # Get target's immediate parent classes
+        self.parent_classes = self._get_parent_classes()
+        
+    def _get_parent_classes(self) -> list[ast.ClassDef]:
+        """Get immediate parent classes of target class"""
+        parents = []
+        base_names = [
             self.target_node_container.lookup_alias(base)
             for base in get_str_bases(self.target_class_node.bases)
         ]
-        # Need to handle case of multiple classes with same name
-        for node_container in self.result.values():
-            for node in node_container.nodes:
-                if isinstance(node, ast.ClassDef) and node.name in parent_names:
-                    self.parent_class = node
-                    break
+        
+        for container in self.result.values():
+            for node in container.nodes:
+                if isinstance(node, ast.ClassDef) and node.name in base_names:
+                    parents.append(node)
+        return parents
 
-    def is_possible(self):
-        # Must have parent class and subclasses
-        return bool(self.parent_class and self.subclasses)
+    def is_possible(self) -> bool:
+        """Check if hierarchy collapse is possible"""
+        # Must have both parents and subclasses
+        return len(self.parent_classes) >= 1 and len(self.subclasses) >= 1
+
+    def _update_inheritance(self, subclass: ast.ClassDef):
+        """Update subclass to inherit from parent instead of target"""
+        subclass_file, subclass_container = get_container_for_node(subclass, self.result)
+        if not subclass_container:
+            return
+
+        # For each base class in subclass that references our target
+        for base in subclass.bases:
+            if isinstance(base, ast.Name):
+                if subclass_container.lookup_alias(base.id) == self.target_class_node.name:
+                    parent_class = self.parent_classes[0]  # Using first parent for now
+                    parent_file, parent_container = get_container_for_node(parent_class, self.result)
+
+                    # If parent is in different file, need to add/check import
+                    if parent_file != subclass_file:
+                        module_name = os.path.splitext(os.path.basename(parent_file))[0]
+                        
+                        # Check for existing import and alias
+                        import_alias = None
+                        import_exists = False
+                        for node in subclass_container.nodes:
+                            if isinstance(node, ast.ImportFrom):
+                                if node.module == module_name:
+                                    for alias in node.names:
+                                        if alias.name == parent_class.name:
+                                            import_exists = True
+                                            import_alias = alias.asname if alias.asname else alias.name
+                                            break
+                                    if import_exists:
+                                        break
+                        
+                        if not import_exists:
+                            # Add new import
+                            import_node = ast.ImportFrom(
+                                module=module_name,
+                                names=[ast.alias(name=parent_class.name, asname=None)],
+                                level=0
+                            )
+                            subclass_container.nodes.insert(0, import_node)
+                            import_alias = parent_class.name
+                        
+                        # Update inheritance to use correct name/alias
+                        base.id = import_alias
+                    else:
+                        # Same file, use parent class name directly
+                        base.id = parent_class.name
+
+    def _push_down_features(self, subclass: ast.ClassDef):
+        """Push target's methods and fields to subclass if not already defined"""
+        # Push down methods
+        target_methods = find_normal_methods(self.target_class_node.body)
+        for method in target_methods:
+            if not method_exists_in_class(method, subclass):
+                subclass.body.append(copy.deepcopy(method))
+
+        # Push down fields
+        target_fields = find_instance_fields(self.target_class_node.body)
+        for field in target_fields:
+            # Check if field exists or is used in subclass
+            field_name = field.targets[0].attr
+            checker = InstanceFieldOccurrenceChecker(field_name)
+            checker.visit(subclass)
+            
+            if not checker.defined and checker.occurred:
+                # Use InitMethodInjector to properly add field
+                injector = InitMethodInjector(content=copy.deepcopy(field))
+                injector.visit(subclass)
 
     def do(self):
+        """Perform the hierarchy collapse refactoring"""
         if not self.is_possible():
             return
 
-        # Move target's methods to parent class
-        for method in self.target_class_node.body:
-            if isinstance(method, ast.FunctionDef):
-                if method.name == '__init__':
-                    # Find parent's __init__
-                    parent_init = next((m for m in self.parent_class.body
-                                        if isinstance(m, ast.FunctionDef) and
-                                        m.name == '__init__'), None)
-
-                    if parent_init:
-                        # Get target's field initializations (excluding super call)
-                        target_statements = [
-                            stmt for stmt in method.body
-                            if not is_super_init_call(stmt)
-                        ]
-
-                        # Find where super().__init__() is called in target
-                        super_call_index = next(
-                            (i for i, stmt in enumerate(method.body)
-                             if is_super_init_call(stmt)),
-                            0
-                        )
-
-                        # Split target's statements into before and after super call -> Is this okay?
-                        before_super = target_statements[:super_call_index]
-                        after_super = target_statements[super_call_index:]
-
-                        # Create new init method with properly ordered initialization
-                        new_init = ast.FunctionDef(
-                            name='__init__',
-                            args=parent_init.args,
-                            body=(before_super +
-                                  parent_init.body +
-                                  after_super),
-                            decorator_list=[],
-                            # Add location information
-                            lineno=1,
-                            col_offset=4,
-                            end_lineno=1,
-                            end_col_offset=4
-                        )
-
-                        # Fix location info for all nodes in the new method
-                        ast.fix_missing_locations(new_init)
-
-                        # Replace parent's init with merged init
-                        self.parent_class.body.remove(parent_init)
-                        self.parent_class.body.insert(0, new_init)
-
-                        # Fix locations for the entire class
-                        ast.fix_missing_locations(self.parent_class)
-
-        # Update subclasses to inherit from parent
+        # Process each subclass
         for subclass in self.subclasses:
-            subclass.bases = [ast.Name(id=self.parent_class.name, ctx=ast.Load())]
+            # Update inheritance to skip target class
+            self._update_inheritance(subclass)
+            
+            # Push down features from target class
+            self._push_down_features(subclass)
 
-        # Remove target class
+            # Fix any missing locations in modified nodes
+            ast.fix_missing_locations(subclass)
+
+        # Remove the target class
         self.result[self.file_path].nodes.remove(self.target_class_node)
-        # self.result[self.file_path].refactored = True
-
 
 class MakeSuperclassAbstract(Refactor):
     def __init__(self, base: dict[str, NodeContainer], location):
