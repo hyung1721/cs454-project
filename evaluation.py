@@ -49,7 +49,7 @@ class Evaluation:
     
     def __gt__(self, other):
         boolean_holder = self._is_higher_better()
-        return boolean_holder if self.result > other.result else not boolean_holder
+        return self.result > other.result if boolean_holder else self.result < other.result
     
     def __ge__(self, other):
         boolean_holder = self._is_higher_better()

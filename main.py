@@ -40,7 +40,7 @@ def compare_metrics(metrics_dict_before, metrics_dict_after):
             iteration_result.worse_metric[metric_type] = evaluation_after
     return iteration_result
 
-def make_statistics(result_logs: List[Iteration_Result], metric_type_list):
+def make_table3_statistics(result_logs: List[Iteration_Result], metric_type_list):
     statistics: Dict[MetricType, Statistics_Unit] = {}
     
     for metric_type in metric_type_list:
@@ -115,6 +115,6 @@ if __name__ == '__main__':
                 
     
     # Print Table3 in Paper
-    statistics = make_statistics(result_logs, metric_types)
+    statistics = make_table3_statistics(result_logs, metric_types)
     for metric_type, statistic in statistics.items():
         print(f"{metric_type} {statistic[Better_Idx]}↑ {statistic[Static_Idx]}= {statistic[Worse_Idx]}↓")

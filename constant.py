@@ -11,4 +11,4 @@ Worse_Idx = 2
 Base_Path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # src의 상위 폴더 refactoring 기준
 Target_Library_Path = os.path.join("refactoring", "target_libraries", "asciimatics")
 
-DESIRED_REFACTORING_COUNT = 20
+DESIRED_REFACTORING_COUNT = 50
