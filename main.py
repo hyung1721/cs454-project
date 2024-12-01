@@ -128,4 +128,4 @@ if __name__ == '__main__':
     # 저장 위치: log Folder
     # file이름 형식: [selected_library]_[refactoring_count]_[additional_naming].log.txt
     # Ex) asciimatics_3_test.log.txt
-    write_log(result_logs, metric_types, selected_library, refactoring_count, additional_naming="")
+    write_log(statistics, result_logs, metric_types, selected_library, refactoring_count, additional_naming="")
