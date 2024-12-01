@@ -33,9 +33,9 @@ class Evaluation:
         return total_metric/total_weight
         
     def _is_higher_better(self)->bool:
-        if self.metric_type in {MetricType.LSCC, MetricType.TCC, MetricType.CC, MetricType.SCOM, MetricType.LCOM5, MetricType.RFC, MetricType.FANIN}:
+        if self.metric_type in {MetricType.LSCC, MetricType.TCC, MetricType.CC, MetricType.SCOM, MetricType.RFC, MetricType.FANIN}:
             return True
-        elif self.metric_type in {MetricType.CBO, MetricType.FANOUT, MetricType.CA}:
+        elif self.metric_type in {MetricType.LCOM5, MetricType.CBO, MetricType.FANOUT, MetricType.CA}:
             return False
         assert False
 

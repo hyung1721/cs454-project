@@ -31,6 +31,7 @@ def compare_metrics(metrics_dict_before, metrics_dict_after):
         if evaluation_after > evaluation_before:
             iteration_result.better_metric[metric_type] = evaluation_after
         elif evaluation_after == evaluation_before:
+            # print(f"equal value is {evaluation_after}")
             iteration_result.static_metric[metric_type] = evaluation_after
         else:
             iteration_result.worse_metric[metric_type] = evaluation_after
