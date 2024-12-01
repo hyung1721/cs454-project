@@ -6,6 +6,7 @@ from src.core.parsing import parse_library
 from src.core.refactor import REFACTORING_TYPES
 import constant
 from constant import Iteration_Result, Statistics_Unit
+from constant import Better_Idx, Static_Idx, Worse_Idx
 from evaluation import Evaluation
 from MetricType import MetricType
 
@@ -44,11 +45,11 @@ def make_statistics(result_logs: List[Iteration_Result], metric_type_list):
     for result_log in result_logs:
         for metric_type in metric_type_list:
             if metric_type in result_log.better_metric:
-                statistics[metric_type][0]+=1
+                statistics[metric_type][Better_Idx]+=1
             elif metric_type in result_log.static_metric:
-                statistics[metric_type][1]+=1
+                statistics[metric_type][Static_Idx]+=1
             elif metric_type in result_log.worse_metric:
-                statistics[metric_type][2]+=1
+                statistics[metric_type][Worse_Idx]+=1
     return statistics
 
 def fitness_function_improves(iteration_result: Iteration_Result):
@@ -109,4 +110,4 @@ if __name__ == '__main__':
     # Print Table3 in Paper
     statistics = make_statistics(result_logs, metric_types)
     for metric_type, statistic in statistics.items():
-        print(f"{metric_type} {statistic[0]}↑ {statistic[1]}= {statistic[2]}↓")
+        print(f"{metric_type} {statistic[Better_Idx]}↑ {statistic[Static_Idx]}= {statistic[Worse_Idx]}↓")
