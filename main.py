@@ -9,7 +9,7 @@ from constant import Iteration_Result, Statistics_Unit
 from constant import Better_Idx, Static_Idx, Worse_Idx
 from evaluation import Evaluation
 from MetricType import MetricType
-from util import printf
+from util import printf, write_log
 
 def get_metric_types_in_paper():
     metric_paper_list = []
@@ -118,3 +118,4 @@ if __name__ == '__main__':
     statistics = make_table3_statistics(result_logs, metric_types)
     for metric_type, statistic in statistics.items():
         print(f"{metric_type} {statistic[Better_Idx]}↑ {statistic[Static_Idx]}= {statistic[Worse_Idx]}↓")
+    write_log("asciimatrics", result_logs, metric_types)
