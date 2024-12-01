@@ -1,20 +1,18 @@
-import os
 import ast
 import copy
+import os
 from abc import ABC, abstractmethod
 from itertools import combinations
 from random import choice
 
 from src.core.parsing import NodeContainer
 from src.utils.ast_utils import find_normal_methods, find_instance_fields, MethodRenamer, \
-    MethodOccurrenceChecker, InstanceFieldOccurrenceChecker, InitMethodInjector, SelfMethodOccurrenceReplacer, \
-    is_direct_self_attr, SelfAttributeOccurrenceReplacer, check_inherit_abc, AbstractMethodDecoratorChecker, \
-    is_super_init_call, get_str_bases, create_super_init_call, DependencyVisitor, find_self_dependencies, \
-    class_redefines_field, update_field_references, get_all_subclasses, \
-    update_descendant_chain, find_method_in_class, method_exists_in_class, get_container_for_node, \
+    create_super_init_call, find_self_dependencies, \
+    update_field_references, update_descendant_chain, find_method_in_class, method_exists_in_class, \
+    get_container_for_node, \
     MethodOccurrenceChecker, InstanceFieldOccurrenceChecker, InitMethodInjector, is_direct_self_attr, \
     SelfAttributeOccurrenceReplacer, check_inherit_abc, AbstractMethodDecoratorChecker, \
-    is_super_init_call, get_str_bases, is_property_decorated_method, check_functions_equal, add_method_to_class, \
+    get_str_bases, is_property_decorated_method, check_functions_equal, add_method_to_class, \
     delete_method_from_class, SelfOccurrenceReplacer
 
 
@@ -314,7 +312,7 @@ class PushDownField(Refactor):
             checker = InstanceFieldOccurrenceChecker(field_name=candidate_field_name)
             pushable_subclasses = []
             for subclass in self.subclasses:
-                checker.visit(node)
+                checker.visit(subclass)
                 if checker.occurred and not checker.defined:
                     pushable_subclasses.append(subclass)
             pushdown_candidates.append((candidate_field_name, pushable_subclasses))
@@ -473,10 +471,7 @@ class PullUpField(Refactor):
                 
         return False
 
-    def do(self):
-        if not self.is_possible():
-            return
-
+    def _do(self):
         independent_fields = self.get_independent_fields()
         field = choice(independent_fields)
         field_name, field_value = self.get_field_info(field)
@@ -525,6 +520,7 @@ class PullUpField(Refactor):
                         ast.unparse(stmt.value) == field_value):
                         sibling_init.body.remove(stmt)
 
+
 class DecreaseFieldAccess(Refactor):
     def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
@@ -537,10 +533,7 @@ class DecreaseFieldAccess(Refactor):
     def is_possible(self):
         return len(self.decreasable_fields) >= 1
 
-    def do(self):
-        if not self.is_possible():
-            return
-
+    def _do(self):
         field_node = choice(self.decreasable_fields)
         old_name = field_node.targets[0].attr
         new_name = "_" + old_name
@@ -569,10 +562,7 @@ class IncreaseFieldAccess(Refactor):
     def is_possible(self):
         return len(self.increasable_fields) >= 1
 
-    def do(self):
-        if not self.is_possible():
-            return
-
+    def _do(self):
         field_node = choice(self.increasable_fields)
         old_name = field_node.targets[0].attr
         new_name = old_name[1:]  # Remove one underscore
@@ -607,10 +597,7 @@ class ExtractHierarchy(Refactor):
     def is_possible(self):
         return len(self.subclasses) >= 2
 
-    def do(self):
-        if not self.is_possible():
-            return
-
+    def _do(self):
         # Find group of similar classes and their common features
         group, shared_methods, shared_fields = self._find_best_subclass_group()
 
@@ -902,11 +889,8 @@ class CollapseHierarchy(Refactor):
                 injector = InitMethodInjector(content=copy.deepcopy(field))
                 injector.visit(subclass)
 
-    def do(self):
+    def _do(self):
         """Perform the hierarchy collapse refactoring"""
-        if not self.is_possible():
-            return
-
         # Process each subclass
         for subclass in self.subclasses:
             # Update inheritance to skip target class
@@ -1083,18 +1067,18 @@ class ReplaceDelegationWithInheritance(Refactor):
 
 
 REFACTORING_TYPES = [
-    # PushDownMethod,
-    # PullUpMethod,
+    PushDownMethod,
+    PullUpMethod,
     DecreaseMethodAccess,
     IncreaseMethodAccess,
-    # PushDownField,
-    # PullUpField,
-    # IncreaseFieldAccess,
-    # DecreaseFieldAccess,
-    # ExtractHierarchy,
-    # CollapseHierarchy,
-    # MakeSuperclassAbstract,
-    # MakeSuperclassConcrete,
-    # ReplaceInheritanceWithDelegation,
-    # ReplaceDelegationWithInheritance,
+    PushDownField,
+    PullUpField,
+    IncreaseFieldAccess,
+    DecreaseFieldAccess,
+    ExtractHierarchy,
+    CollapseHierarchy,
+    MakeSuperclassAbstract,
+    MakeSuperclassConcrete,
+    ReplaceInheritanceWithDelegation,
+    ReplaceDelegationWithInheritance,
 ]

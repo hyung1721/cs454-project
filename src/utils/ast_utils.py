@@ -1,8 +1,9 @@
 import ast
-
 # Add src. when merging
-from ast import AST, ClassDef, FunctionDef, Assign, Attribute, Name
-from core.parsing import NodeContainer
+from ast import ClassDef, FunctionDef, Assign, Attribute, Name
+
+from src.core.parsing import NodeContainer
+
 
 # Utility functions
 def find_method_in_class(method_name: str, class_node: ast.ClassDef):
