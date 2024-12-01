@@ -999,7 +999,8 @@ class ReplaceInheritanceWithDelegation(Refactor):
 
         if superclass_node is None:
             self.undo()
-            raise Warning("Cannot find superclass '%s' since it may be in dependency" % superclass_name)
+            print("Cannot find superclass '%s' since it may be in dependency" % superclass_name)
+            return
 
         superclass_methods = [method.name for method in find_normal_methods(superclass_node.body)]
         ignore_methods = [method.name for method in find_normal_methods(self.target_class_node.body)]
