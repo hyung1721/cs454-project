@@ -21,7 +21,7 @@ def write_log(statistics, result_logs: List[Iteration_Result], metric_types: Lis
     with open(Log_Save_Path(library_name.value, total_cycles, additional_naming), "w") as file:
         
         for metric_type, statistic in statistics.items():
-            file.write(f"{metric_type} {statistic[Better_Idx]}↑ {statistic[Static_Idx]}= {statistic[Worse_Idx]}↓\n")
+            file.write(f"{metric_type.value} {statistic[Better_Idx]}up {statistic[Static_Idx]}= {statistic[Worse_Idx]}down\n")
         file.write("\n")
         
         metric_type_order = ""
