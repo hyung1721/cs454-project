@@ -16,7 +16,9 @@ if __name__ == '__main__':
 
     refactoring_count = 0
 
-    target_class_location = choice(classes)
+    # target_class_location = choice(classes)
+    print(classes)
+    target_class_location = classes[7]
     _refactoring = choice(REFACTORING_TYPES)
     print(target_class_location, _refactoring)
 
@@ -25,9 +27,10 @@ if __name__ == '__main__':
     if refactor.is_possible():
         refactor.do()
 
-        for item in refactor.result.values():
-            for node in item.nodes:
-                print(ast.unparse(node))
+        for file_path, item in refactor.result.items():
+            if "api" in file_path:
+                for node in item.nodes:
+                    print(ast.unparse(node))
 
         # TODO: metric 계산 & metric이 오르지 않으면 undo
         # refactor.undo()

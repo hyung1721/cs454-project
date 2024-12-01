@@ -30,19 +30,19 @@ def test_refactoring(library_path, refactoring_type=None, output_dir="refactored
     for class_location in classes:  
         file_path, idx, class_name = class_location
 
-        # Use specified src type or try all types
+        # Use specified refactoring type or try all types
         refactoring_types = [refactoring_type] if refactoring_type else REFACTORING_TYPES
 
         for refactoring_class in refactoring_types:
             print(f"\nTrying {refactoring_class.__name__} on {class_name}...")
 
-            # Create src instance
+            # Create refactoring instance
             refactor = refactoring_class(
                 base=node_container_dict,
                 location=(file_path, idx)
             )
 
-            # Check if src is possible
+            # Check if refactoring is possible
             if refactor.is_possible():
                 print("Refactoring is possible")
 
@@ -66,7 +66,7 @@ def test_refactoring(library_path, refactoring_type=None, output_dir="refactored
                 # Store result
                 results.append({
                     'class_name': class_name,
-                    'src': refactoring_class.__name__,
+                    'refactoring': refactoring_class.__name__,
                     'success': True
                 })
         break
@@ -86,7 +86,7 @@ def test_refactoring(library_path, refactoring_type=None, output_dir="refactored
     print("-" * 40)
     for result in results:
         status = "✓" if result['success'] else "✗"
-        print(f"{status} {result['src']} on {result['class_name']}")
+        print(f"{status} {result['refactoring']} on {result['class_name']}")
 
 
 if __name__ == '__main__':

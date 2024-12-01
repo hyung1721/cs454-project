@@ -2,9 +2,8 @@ import os
 import ast
 import copy
 from abc import ABC, abstractmethod
-from random import choice
 from itertools import combinations
-
+from random import choice
 
 from src.core.parsing import NodeContainer
 from src.utils.ast_utils import find_normal_methods, find_instance_fields, MethodRenamer, \
@@ -13,6 +12,10 @@ from src.utils.ast_utils import find_normal_methods, find_instance_fields, Metho
     is_super_init_call, get_str_bases, create_super_init_call, DependencyVisitor, find_self_dependencies, \
     class_redefines_field, update_field_references, get_all_subclasses, \
     update_descendant_chain, find_method_in_class, method_exists_in_class, get_container_for_node
+    MethodOccurrenceChecker, InstanceFieldOccurrenceChecker, InitMethodInjector, is_direct_self_attr, \
+    SelfAttributeOccurrenceReplacer, check_inherit_abc, AbstractMethodDecoratorChecker, \
+    is_super_init_call, get_str_bases, is_property_decorated_method, check_functions_equal, add_method_to_class, \
+    delete_method_from_class, SelfOccurrenceReplacer
 
 
 class Refactor(ABC):
@@ -40,6 +43,30 @@ class Refactor(ABC):
                 if isinstance(node, ast.ClassDef) and node.name in superclass_names:
                     self.superclasses.append(node)
 
+    def _get_all_descendants(self, current_node: ast.ClassDef):
+        current_subclasses = []
+
+        for node_container in self.result.values():
+            for node in node_container.nodes:
+                if isinstance(node, ast.ClassDef):
+                    if any(
+                            node_container.lookup_alias(base) == current_node.name
+                            for base in get_str_bases(node.bases)
+                    ):
+                        current_subclasses.append(node)
+
+        more_subclasses = []
+        for subclass in current_subclasses:
+            more_subclasses.extend(self._get_all_descendants(subclass))
+
+        return current_subclasses + more_subclasses
+
+    def __execute_post_processes(self):
+        # refactoring 수행 이후 후처리 작업들
+
+        if len(self.target_class_node.body) == 0:
+            self.target_class_node.body.append(ast.Pass())
+
     def __init__(self, base: dict[str, NodeContainer], location):
         self.base = base
         self.result = copy.deepcopy(base)
@@ -60,8 +87,15 @@ class Refactor(ABC):
         ...
 
     @abstractmethod
-    def do(self):
+    def _do(self):
         ...
+
+    def do(self):
+        if not self.is_possible():
+            return
+
+        self._do()
+        self.__execute_post_processes()
 
     def undo(self):
         self.result = self.base
@@ -76,27 +110,38 @@ class PushDownMethod(Refactor):
     def is_possible(self):
         return len(self.methods) >= 1 and len(self.subclasses) >= 1
 
-    def do(self):
-        if not self.is_possible():
+    def _do(self):
+        method_node = choice(self.methods)
+        is_property_method = is_property_decorated_method(method_node)
+
+        method_idx = self.target_class_node.body.index(method_node)
+        self.target_class_node.body.pop(method_idx)
+
+        # 다른 method에서 쓰이고 있으면 중단
+        self_occurrence_checker = MethodOccurrenceChecker(method_node.name, is_property_method)
+        self_occurrence_checker.visit(self.target_class_node)
+        if self_occurrence_checker.occurred:
+            self.target_class_node.body.insert(method_idx, method_node)
             return
 
-        method_node = choice(self.methods)
-
-        # remove method from target class
-        self.target_class_node.body.remove(method_node)
-        self.result[self.file_path].nodes[self.node_idx] = self.target_class_node
-
+        moved = False
         # add method to subclasses of target class
         for node in self.subclasses:
             # find the occurrence of method
-            checker = MethodOccurrenceChecker(method_name=method_node.name)
+            checker = MethodOccurrenceChecker(method_node.name, is_property_method)
             checker.visit(node)
 
-            if checker.occurred and not checker.overridden:
+            if checker.occurred and not checker.defined:
                 new_method = copy.deepcopy(method_node)
-                node.body.append(new_method)
+                add_method_to_class(node, new_method)
+                moved = True
 
-        # self.result[self.file_path].refactored = True
+        if moved:
+            # remove method from target class only when a move occurs
+            self.result[self.file_path].nodes[self.node_idx] = self.target_class_node
+        else:
+            # otherwise, revert.
+            self.target_class_node.body.insert(method_idx, method_node)
 
 
 class PullUpMethod(Refactor):
@@ -107,27 +152,51 @@ class PullUpMethod(Refactor):
     def is_possible(self):
         return len(self.methods) >= 1 and len(self.superclasses) >= 1
 
-    def do(self):
-        if not self.is_possible():
+    def _get_siblings(self, immediate_superclass: ast.ClassDef, method: ast.FunctionDef):
+        siblings = []
+        for node_container in self.result.values():
+            for node in node_container.nodes:
+                if isinstance(node, ast.ClassDef):
+                    if any(
+                            node_container.lookup_alias(base) == immediate_superclass.name
+                            for base in get_str_bases(node.bases)
+                    ):
+                        siblings.append(node)
+
+        siblings_with_same_method_defs = []
+        for sibling in siblings:
+            for node in sibling.body:
+                if isinstance(node, ast.FunctionDef) and node.name == method.name:
+                    if check_functions_equal(node, method):
+                        siblings_with_same_method_defs.append(sibling)
+                        break
+
+        return siblings_with_same_method_defs
+
+    def _do(self):
+        method_node = choice(self.methods)
+        immediate_superclass = choice(self.superclasses)
+        is_property_method = is_property_decorated_method(method_node)
+
+        # superclass에 이미 method가 있으면 pull up 안함
+        checker = MethodOccurrenceChecker(method_node.name, is_property_method)
+        checker.visit(immediate_superclass)
+        if checker.defined:
             return
 
-        method_node = choice(self.methods)
+        siblings = [self.target_class_node] + self._get_siblings(immediate_superclass, method_node)
+        for sibling in siblings:
+            delete_method_from_class(sibling, method_node)
 
-        # remove method from target class
-        self.target_class_node.body.remove(method_node)
-        self.result[self.file_path].nodes[self.node_idx] = self.target_class_node
-
-        # add method to subclasses of target class
-        for node in self.superclasses:
-            new_method = copy.deepcopy(method_node)
-            node.body.append(new_method)
-
-        # self.result[self.file_path].refactored = True
+        add_method_to_class(
+            class_node=immediate_superclass,
+            method_node=copy.deepcopy(method_node)
+        )
 
 
 # foo() -> public, _foo() -> protected, __foo() -> private
-# Increase Accessibility: foo() -> _foo() or _foo() -> __foo()
-class IncreaseMethodAccess(Refactor):
+# Decrease Accessibility: foo() -> _foo() or _foo() -> __foo()
+class DecreaseMethodAccess(Refactor):
     def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
         self.public_or_protected_methods = [
@@ -138,24 +207,34 @@ class IncreaseMethodAccess(Refactor):
     def is_possible(self):
         return len(self.public_or_protected_methods) >= 1
 
-    def do(self):
-        if not self.is_possible():
-            return
-
+    def _do(self):
         method_node = choice(self.public_or_protected_methods)
+        is_property_method = is_property_decorated_method(method_node)
 
         old_name = method_node.name
         new_name = "_" + method_node.name
-        renamer = MethodRenamer(old_name=old_name, new_name=new_name)
 
-        # Change the all occurrence of method in classes, including subclasses
-        classes = [self.target_class_node] + self.subclasses
-        for item in classes:
-            renamer.visit(item)
+        for node in self.target_class_node.body:
+            if isinstance(node, ast.FunctionDef):
+                if method_node.name == new_name:
+                    return
+
+        renamer = MethodRenamer(old_name, new_name, is_property_method)
+        renamer.visit(self.target_class_node)
+
+        # Change the all occurrence of method in descendants
+        descendants = self._get_all_descendants(self.target_class_node)
+
+        for descendant in descendants:
+            occurrence_checker = MethodOccurrenceChecker(old_name, is_property_method)
+            occurrence_checker.visit(descendant)
+
+            if not occurrence_checker.defined:
+                renamer.visit(descendant)
 
 
-# Decrease Accessibility: _foo() -> foo() or __foo() -> _foo()
-class DecreaseMethodAccess(Refactor):
+# Increase Accessibility: _foo() -> foo() or __foo() -> _foo()
+class IncreaseMethodAccess(Refactor):
     def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
         self.protected_or_private_methods = [
@@ -166,20 +245,30 @@ class DecreaseMethodAccess(Refactor):
     def is_possible(self):
         return len(self.protected_or_private_methods) >= 1
 
-    def do(self):
-        if not self.is_possible():
-            return
-
+    def _do(self):
         method_node = choice(self.protected_or_private_methods)
+        is_property_method = is_property_decorated_method(method_node)
 
         old_name = method_node.name
         new_name = method_node.name[1:]  # remove first underscore
-        renamer = MethodRenamer(old_name=old_name, new_name=new_name)
 
-        # Change the all occurrence of method in classes, including subclasses
-        classes = [self.target_class_node] + self.subclasses
-        for item in classes:
-            renamer.visit(item)
+        for node in self.target_class_node.body:
+            if isinstance(node, ast.FunctionDef):
+                if method_node.name == new_name:
+                    return
+
+        renamer = MethodRenamer(old_name, new_name, is_property_method)
+        renamer.visit(self.target_class_node)
+
+        # Change the all occurrence of method in descendants
+        descendants = self._get_all_descendants(self.target_class_node)
+
+        for descendant in descendants:
+            occurrence_checker = MethodOccurrenceChecker(old_name, is_property_method)
+            occurrence_checker.visit(descendant)
+
+            if not occurrence_checker.defined:
+                renamer.visit(descendant)
 
 
 # Field Level Refactorings
@@ -208,7 +297,7 @@ class PushDownField(Refactor):
         print(f"All fields used by parent method")
         return False
 
-    def do(self):
+    def _do(self):
         if not self.is_possible():
             return
 
@@ -219,7 +308,21 @@ class PushDownField(Refactor):
             if not self.is_field_used_by_parent(field_name):
                 pushable_fields.append(field)
 
-        field_node = choice(pushable_fields)
+        # find candidate field for pushdown
+        pushdown_candidates = []
+        for candidate_field_name in pushable_fields:
+            checker = InstanceFieldOccurrenceChecker(field_name=candidate_field_name)
+            pushable_subclasses = []
+            for subclass in self.subclasses:
+                checker.visit(node)
+                if checker.occurred and not checker.defined:
+                    pushable_subclasses.append(subclass)
+            pushdown_candidates.append((candidate_field_name, pushable_subclasses))
+        
+        if not pushdown_candidates:
+            return
+
+        field_node, pushdown_subclasses = choice(pushdown_candidates)
         field_name = field_node.targets[0].attr  # get name from self.field_name
 
         # Find __init__ method
@@ -229,65 +332,59 @@ class PushDownField(Refactor):
                 init_idx = idx
                 break
 
-        # Add to subclasses that use but don't define it
-        for node in self.subclasses:
-            checker = InstanceFieldOccurrenceChecker(field_name=field_name)
-            checker.visit(node)
+        for pushdown_subclass in pushdown_subclasses:
+            # Find or create __init__ in subclass
+            init_method = None
+            for child in pushdown_subclass.body:
+                if isinstance(child, ast.FunctionDef) and child.name == "__init__":
+                    init_method = child
+                    break
 
-            if checker.occurred and not checker.defined:
-                refactor_occurred = True
-                # Find or create __init__ in subclass
-                init_method = None
-                for child in node.body:
-                    if isinstance(child, ast.FunctionDef) and child.name == "__init__":
-                        init_method = child
-                        break
-
-                if init_method is None:
-                    # Create new __init__ with super().__init__() call
-                    init_method = ast.FunctionDef(
-                        name='__init__',
-                        args=ast.arguments(
-                            posonlyargs=[],
-                            args=[ast.arg(arg='self', lineno=1, col_offset=0)],
-                            kwonlyargs=[],
-                            kw_defaults=[],
-                            defaults=[]
-                        ),
-                        body=[
-                            ast.Expr(
-                                value=ast.Call(
-                                    func=ast.Attribute(
-                                        value=ast.Call(
-                                            func=ast.Name(id='super'),
-                                            args=[],
-                                            keywords=[]
-                                        ),
-                                        attr='__init__'
+            if init_method is None:
+                # Create new __init__ with super().__init__() call
+                init_method = ast.FunctionDef(
+                    name='__init__',
+                    args=ast.arguments(
+                        posonlyargs=[],
+                        args=[ast.arg(arg='self', lineno=1, col_offset=0)],
+                        kwonlyargs=[],
+                        kw_defaults=[],
+                        defaults=[]
+                    ),
+                    body=[
+                        ast.Expr(
+                            value=ast.Call(
+                                func=ast.Attribute(
+                                    value=ast.Call(
+                                        func=ast.Name(id='super'),
+                                        args=[],
+                                        keywords=[]
                                     ),
-                                    args=[],
-                                    keywords=[]
-                                )
+                                    attr='__init__'
+                                ),
+                                args=[],
+                                keywords=[]
                             )
-                        ],
-                        decorator_list=[],
-                        lineno=1,
-                        col_offset=0,
-                        end_lineno=1,
-                        end_col_offset=0
-                    )
-                    node.body.insert(0, init_method)
+                        )
+                    ],
+                    decorator_list=[],
+                    lineno=1,
+                    col_offset=0,
+                    end_lineno=1,
+                    end_col_offset=0
+                )
+                pushdown_subclass.body.insert(0, init_method)
 
-                # Add field assignment after super().__init__()
-                new_field = copy.deepcopy(field_node)
-                init_method.body.insert(1, new_field)
-        if refactor_occurred:
+            # Add field assignment after super().__init__()
+            new_field = copy.deepcopy(field_node)
+            init_method.body.insert(1, new_field)
+            
             if init_idx is not None:
                 # Remove field from parent's __init__
                 # Shouldn't always remove it: only when we actually push down?
                 init_body = self.target_class_node.body[init_idx].body
                 init_body.remove(field_node)
-        # self.result[self.file_path].refactored = refactor_occurred
+            # self.result[self.file_path].refactored = refactor_occurred
 
 
 class PullUpField(Refactor):
@@ -837,10 +934,7 @@ class MakeSuperclassAbstract(Refactor):
     def is_possible(self):
         return len(self.non_abstract_superclasses) >= 1
 
-    def do(self):
-        if not self.is_possible():
-            return
-
+    def _do(self):
         superclass = choice(self.non_abstract_superclasses)
 
         checker = AbstractMethodDecoratorChecker()
@@ -868,10 +962,7 @@ class MakeSuperclassConcrete(Refactor):
     def is_possible(self):
         return len(self.abstract_superclasses) >= 1
 
-    def do(self):
-        if not self.is_possible():
-            return
-
+    def _do(self):
         superclass = choice(self.abstract_superclasses)
 
         checker = AbstractMethodDecoratorChecker()
@@ -885,57 +976,67 @@ class ReplaceInheritanceWithDelegation(Refactor):
     def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
 
-        self.methods = find_normal_methods(self.target_class_node.body)
 
     def is_possible(self):
         return len(self.superclasses) >= 1
 
-    def do(self):
-        if not self.is_possible():
-            return
+    def _do(self):
+        superclass_expr = choice(self.target_class_node.bases) # this may be aliased
+        delegate_attr_name = f"riwd_{ast.unparse(superclass_expr).replace('.', '_')}"
 
-        superclass = choice(self.superclasses)
-        delegate_attribute_name = f'riwd_{superclass.name}'
-
-        # create delegation
+        # Create delegation
         assignment_node = ast.Assign(
             targets=[
                 ast.Attribute(
-                    value=ast.Name(id='self', ctx=ast.Load()),
-                    attr=delegate_attribute_name,
+                    value=ast.Name(id="self", ctx=ast.Load()),
+                    attr=delegate_attr_name,
                     ctx=ast.Store()
                 )
             ],
             value=ast.Call(
-                func=ast.Name(id=superclass.name,ctx=ast.Load()),
+                func=superclass_expr,
                 args=[],
-                keywords=[]
+                keywords=[],
             )
         )
 
         init_method_injector = InitMethodInjector(content=assignment_node)
         init_method_injector.visit(self.target_class_node)
 
-        # delete inheritance
-        superclass_index = -1
-        for idx, base in enumerate(self.superclasses):
-            if base.name == superclass.name:
-                superclass_index = idx
+        # Delete inheritance
+        self.target_class_node.bases.remove(superclass_expr)
+
+        superclass_name = self.target_node_container.lookup_alias(list(get_str_bases([superclass_expr]))[0])
+        superclass_node = None
+        for superclass in self.superclasses:
+            if superclass.name == superclass_name:
+                superclass_node = superclass
                 break
-        self.target_class_node.bases.pop(superclass_index)
 
-        superclass_methods = find_normal_methods(superclass.body)
-        methods_to_be_replaced = []
+        if superclass_node is None:
+            raise Exception("Cannot find superclass '%s'" % superclass_name)
 
-        target_class_method_names = [method.name for method in self.methods]
+        superclass_methods = [method.name for method in find_normal_methods(superclass_node.body)]
+        ignore_methods = [method.name for method in find_normal_methods(self.target_class_node.body)]
+        methods_to_be_replaced = [item for item in superclass_methods if item not in ignore_methods]
 
-        for method in superclass_methods:
-            if not (method.name in target_class_method_names):
-                methods_to_be_replaced.append(method.name)
+        # does not consider the case len(targets) >= 2
+        superclass_fields = [
+            field.targets[0].attr
+            for field in find_instance_fields(superclass_node.body)
+            if len(field.targets) == 1
+        ]
+        ignore_fields = [
+            field.targets[0].attr
+            for field in find_instance_fields(self.target_class_node.body)
+            if len(field.targets) == 1
+        ]
+        fields_to_be_replaced = [item for item in superclass_fields if item not in ignore_fields]
 
-        replacer = SelfMethodOccurrenceReplacer(
-            methods_to_be_replaced=methods_to_be_replaced,
-            attr_name=delegate_attribute_name
+        replacer = SelfOccurrenceReplacer(
+            methods_to_be_replaced,
+            fields_to_be_replaced,
+            delegate_attr_name
         )
         replacer.visit(self.target_class_node)
 
@@ -944,7 +1045,7 @@ class ReplaceDelegationWithInheritance(Refactor):
     def __init__(self, base: dict[str, NodeContainer], location):
         super().__init__(base, location)
 
-        self.delegation_infos = []  # (idx, self attr name, class name)
+        self.delegations = []
         self.target_class_init_method = None
         for node in self.target_class_node.body:
             if isinstance(node, ast.FunctionDef) and node.name == "__init__":
@@ -954,27 +1055,18 @@ class ReplaceDelegationWithInheritance(Refactor):
         if self.target_class_init_method is not None:
             for idx, stmt in enumerate(self.target_class_init_method.body):
                 if isinstance(stmt, ast.Assign) and is_direct_self_attr(stmt.targets[0]) and isinstance(stmt.value, ast.Call):
-                    if isinstance(stmt.value.func, ast.Name):
-                        # case 1: self.a = A()
-                        # check A is a real class
-                        if stmt.value.func.id in self.class_names:
-                            self.delegation_infos.append((idx, stmt.targets[0].attr, stmt.value.func.id))
-                    elif isinstance(stmt.value.func, ast.Attribute):
-                        # case 2: self.a = module.A()
-                        if stmt.value.func.attr in self.class_names:
-                            self.delegation_infos.append((idx, stmt.targets[0].attr, stmt.value.func.attr))
-                    else:
-                        raise Exception(f"stmt.value.func with {type(stmt.value.func)} is not handled.")
-
+                    class_expr = stmt.value.func
+                    class_name = self.target_node_container.lookup_alias(
+                        list(get_str_bases([class_expr]))[0]
+                    )
+                    if class_name in self.class_names:
+                        self.delegations.append((idx, stmt.targets[0].attr, class_expr))
 
     def is_possible(self):
-        return len(self.delegation_infos) >= 1
+        return self.target_class_init_method is not None and len(self.delegations) >= 1
 
-    def do(self):
-        if not self.is_possible():
-            return
-
-        idx, attr, class_name = choice(self.delegation_infos)
+    def _do(self):
+        idx, attr, class_expr = choice(self.delegations)
 
         # delegation 제거
         if self.target_class_init_method:
@@ -983,12 +1075,7 @@ class ReplaceDelegationWithInheritance(Refactor):
                 self.target_class_init_method.body.append(ast.Pass())
 
         # inheritance 추가
-        self.target_class_node.bases.append(
-            ast.Name(
-                id=class_name,
-                ctx=ast.Load()
-            )
-        )
+        self.target_class_node.bases.append(class_expr)
 
         # occurrence 찾아서 self.으로 변경
         replacer = SelfAttributeOccurrenceReplacer(attr_name=attr)
@@ -996,18 +1083,18 @@ class ReplaceDelegationWithInheritance(Refactor):
 
 
 REFACTORING_TYPES = [
-    PushDownMethod,
-    PullUpMethod,
-    IncreaseMethodAccess,
+    # PushDownMethod,
+    # PullUpMethod,
     DecreaseMethodAccess,
-    PushDownField,
-    PullUpField,
-    IncreaseFieldAccess,
-    DecreaseFieldAccess,
-    ExtractHierarchy,
-    CollapseHierarchy,
-    MakeSuperclassAbstract,
-    MakeSuperclassConcrete,
-    ReplaceInheritanceWithDelegation,
-    ReplaceDelegationWithInheritance,
+    IncreaseMethodAccess,
+    # PushDownField,
+    # PullUpField,
+    # IncreaseFieldAccess,
+    # DecreaseFieldAccess,
+    # ExtractHierarchy,
+    # CollapseHierarchy,
+    # MakeSuperclassAbstract,
+    # MakeSuperclassConcrete,
+    # ReplaceInheritanceWithDelegation,
+    # ReplaceDelegationWithInheritance,
 ]
