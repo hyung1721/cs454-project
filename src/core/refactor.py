@@ -11,7 +11,7 @@ from src.utils.ast_utils import find_normal_methods, find_instance_fields, Metho
     is_direct_self_attr, SelfAttributeOccurrenceReplacer, check_inherit_abc, AbstractMethodDecoratorChecker, \
     is_super_init_call, get_str_bases, create_super_init_call, DependencyVisitor, find_self_dependencies, \
     class_redefines_field, update_field_references, get_all_subclasses, \
-    update_descendant_chain, find_method_in_class, method_exists_in_class, get_container_for_node
+    update_descendant_chain, find_method_in_class, method_exists_in_class, get_container_for_node, \
     MethodOccurrenceChecker, InstanceFieldOccurrenceChecker, InitMethodInjector, is_direct_self_attr, \
     SelfAttributeOccurrenceReplacer, check_inherit_abc, AbstractMethodDecoratorChecker, \
     is_super_init_call, get_str_bases, is_property_decorated_method, check_functions_equal, add_method_to_class, \
