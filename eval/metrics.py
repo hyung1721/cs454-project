@@ -82,7 +82,7 @@ class Metric:
                 I1, I2 = cls.I(i), cls.I(j)
                 if len(I1) == 0 or len(I2) == 0:
                     print("SCOM requires at least one attributes for each methods")
-                    return 0
+                    continue
                 sigma += len(intersection_of_I(I1, I2)) * len(union_of_I(I1, I2)) / min(len(I1), len(I2)) / l / (k * (k - 1))
         return 2 * sigma
 
