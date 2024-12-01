@@ -123,4 +123,9 @@ if __name__ == '__main__':
     statistics = make_table3_statistics(result_logs, metric_types)
     for metric_type, statistic in statistics.items():
         print(f"{metric_type} {statistic[Better_Idx]}↑ {statistic[Static_Idx]}= {statistic[Worse_Idx]}↓")
+    
+    # Log 저장과정 
+    # 저장 위치: log Folder
+    # file이름 형식: [selected_library]_[refactoring_count]_[additional_naming].log.txt
+    # Ex) asciimatics_3_test.log.txt
     write_log(result_logs, metric_types, selected_library, refactoring_count, additional_naming="")
