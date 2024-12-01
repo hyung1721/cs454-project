@@ -9,6 +9,7 @@ from constant import Iteration_Result, Statistics_Unit
 from constant import Better_Idx, Static_Idx, Worse_Idx
 from evaluation import Evaluation
 from MetricType import MetricType
+from util import printf
 
 def get_metric_types_in_paper():
     metric_paper_list = []
@@ -26,12 +27,14 @@ def calculate_metrics(node_container_dict, metric_type_list):
 
 def compare_metrics(metrics_dict_before, metrics_dict_after):
     iteration_result = Iteration_Result({}, {}, {})
+    printf("========================================")
     for metric_type, evaluation_after in metrics_dict_after.items():
         evaluation_before = metrics_dict_before[metric_type]
+        printf(f"{metric_type } value is before:{evaluation_before}, after:{evaluation_after}")
         if evaluation_after > evaluation_before:
             iteration_result.better_metric[metric_type] = evaluation_after
         elif evaluation_after == evaluation_before:
-            # print(f"equal value is {evaluation_after}")
+            printf(f"equal value is {evaluation_after}")
             iteration_result.static_metric[metric_type] = evaluation_after
         else:
             iteration_result.worse_metric[metric_type] = evaluation_after
@@ -54,6 +57,9 @@ def make_statistics(result_logs: List[Iteration_Result], metric_type_list):
     return statistics
 
 def fitness_function_improves(iteration_result: Iteration_Result):
+    printf(f"iteration result's better_metric count is {len(iteration_result.better_metric)}")
+    printf(f"iteration result's static_metric count is {len(iteration_result.static_metric)}")
+    printf(f"iteration result's worse_metric count is {len(iteration_result.worse_metric)}")
     return len(iteration_result.better_metric) > 0
 
 def is_finish_cycle(refactoring_count):

@@ -56,10 +56,10 @@ class Evaluation:
         return boolean_holder if self.result >= other.result else not boolean_holder
     
     def __eq__(self, other):
-        return True if self.result == other.result else not False
+        return self.result == other.result
     
     def __ne__(self, other):
-        return True if self.result != other.result else not False
+        return self.result != other.result
 
     def __str__(self):
         return str(self.result)
