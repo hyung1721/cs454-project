@@ -1,7 +1,7 @@
 import collections
 import operator
 
-from ast_helper import ast_parser as parser
+import eval.ast_helper.ast_parser as parser
 
 import ast
 from itertools import combinations

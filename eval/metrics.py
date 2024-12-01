@@ -1,8 +1,8 @@
-from class_parser import ClassParser, cau, intersection_of_I, union_of_I, create_structure
+from eval.class_parser import ClassParser, cau, intersection_of_I, union_of_I, create_structure
 from itertools import combinations
 from MetricType import MetricType
 
-class _Metric:
+class Metric:
     def __init__(self, metric_type: MetricType):
         self.metric_type = metric_type
 
@@ -29,20 +29,12 @@ class _Metric:
             return self._Ca(cls)
         else:
             raise ValueError(f"Unsupported metric type: {self.metric_type}")
-        
-    def evaluate_improvement(self, before_metrics, after_metrics) -> str:
-        lower_is_better = {MetricType.CBO, MetricType.FANOUT, MetricType.CA}
-        higher_is_better = {MetricType.LSCC, MetricType.TCC, MetricType.CC, MetricType.SCOM, MetricType.LCOM5, MetricType.RFC, MetricType.FANIN}
-
-        if self.metric_type in lower_is_better:
-            return True if after_metrics < before_metrics else False
-        elif self.metric_type in higher_is_better:
-            return True if after_metrics > before_metrics else False
-        else:
-            raise ValueError(f"Unsupported metric type: {self.metric_type}")
 
     def _LSCC(self, cls:ClassParser):
         l, k = cls.l(), cls.k()
+        if l == 0 and k == 0:
+            print("LSCC found empty class")
+            return 1
         if l == 0 and k > 1:
             return 0
         elif (l > 0 and k == 0) or k == 1:
@@ -150,16 +142,86 @@ class _Metric:
                         ca_count += 1
                         break
         return ca_count
-
-def weight_of(cls:ClassParser):
-    l, k = cls.l(), cls.k()
-    return l * k * (k-1)
         
+class Weight:
+    def __init__(self, metric_type: MetricType):
+        self.metric_type = metric_type
+
+    def value(self, cls: ClassParser):
+        if self.metric_type == MetricType.LSCC:
+            return self._LSCC(cls)
+        elif self.metric_type == MetricType.TCC:
+            return self._TCC(cls)
+        elif self.metric_type == MetricType.CC:
+            return self._CC(cls)
+        elif self.metric_type == MetricType.SCOM:
+            return self._SCOM(cls)
+        elif self.metric_type == MetricType.LCOM5:
+            return self._LCOM5(cls)
+        elif self.metric_type == MetricType.CBO:
+            return self._CBO(cls)
+        elif self.metric_type == MetricType.RFC:
+            return self._RFC(cls)
+        elif self.metric_type == MetricType.FANIN:
+            return self._FanIn(cls)
+        elif self.metric_type == MetricType.FANOUT:
+            return self._FanOut(cls)
+        elif self.metric_type == MetricType.CA:
+            return self._Ca(cls)
+        else:
+            raise ValueError(f"Unsupported metric type: {self.metric_type}")
+        
+    def _LSCC(self, cls:ClassParser):
+        l, k = cls.l(), cls.k()
+        return (l*k*(k-1)) if k!=1 else 1
+        
+    def _TCC(self, cls:ClassParser):
+        k = cls.k()
+        return k * (k-1)
+    
+    def _CC(self, cls:ClassParser):
+        k = cls.k()
+        return k * (k-1)
+        
+    def _SCOM(self, cls:ClassParser):
+        l, k = cls.l(), cls.k()
+        return (l*k*(k-1))
+
+    def _LCOM5(self, cls:ClassParser):
+        l, k = cls.l(), cls.k()
+        return l * k
+    
+    def _CBO(self, cls: ClassParser):
+        return NotImplemented
+
+    def _RFC(self, cls: ClassParser):
+        return NotImplemented
+
+    def _FanIn(self, cls: ClassParser):
+        return NotImplemented
+
+    def _FanOut(self, cls: ClassParser):
+        return NotImplemented
+
+    def _Ca(self, cls_list):
+        return NotImplemented
+
+def evaluate_improvement(metric_type, before_metrics, after_metrics) -> str:
+    lower_is_better = {MetricType.CBO, MetricType.FANOUT, MetricType.CA}
+    higher_is_better = {MetricType.LSCC, MetricType.TCC, MetricType.CC, MetricType.SCOM, MetricType.LCOM5, MetricType.RFC, MetricType.FANIN}
+
+    if metric_type in lower_is_better:
+        return True if after_metrics < before_metrics else False
+    elif metric_type in higher_is_better:
+        return True if after_metrics > before_metrics else False
+    else:
+        raise ValueError(f"Unsupported metric type: {self.metric_type}")
+            
 def cohesion_metric(ast_cls_list, metric_type):
-    if metric_type not in ALLOWED_METRIC: # ALLWED_METRIC?? - 20241120 신동환
-        print(f"[metrics.py] Not allowed metric type : {metric_type}")
-        return None
-    metric = _Metric(metric_type)
+    # if metric_type not in ALLOWED_METRIC: # ALLWED_METRIC?? - 20241120 신동환
+    #     print(f"[metrics.py] Not allowed metric type : {metric_type}")
+    #     return None
+    metric = Metric(metric_type)
     # total_weight = 0
     result = []
     for ast_cls in ast_cls_list:
@@ -198,7 +260,7 @@ class ExampleClass2(object):
         self.instance_variable1 = 7
 """
     import ast
-    from ast_helper import ast_parser as parser
+    import eval.ast_helper.ast_parser as parser
     module_ast_node = ast.parse(source_code)
 
     # 테스트를 위해, input 과 동일한 List[ast.ClassDef] 형식으로 변환

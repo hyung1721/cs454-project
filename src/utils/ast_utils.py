@@ -359,6 +359,19 @@ class MethodOccurrenceChecker(ast.NodeVisitor):
         self.generic_visit(node)
 
 
+# This checks the occurrence of callings of method in the class
+class MethodSelfOccurrenceChecker(ast.NodeVisitor):
+    def __init__(self, method_name: str):
+        self.method_name = method_name
+        self.occurred = False
+
+    def visit_Call(self, node):
+        if not self.occurred and is_direct_self_attr(node.func) and node.func.attr == self.method_name:
+            self.occurred = True
+        self.generic_visit(node)
+
+
+
 class InstanceFieldOccurrenceChecker(ast.NodeVisitor):
     def __init__(self, field_name: str):
         self.field_name = field_name

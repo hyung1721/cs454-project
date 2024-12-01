@@ -1,8 +1,10 @@
 import ast
 import os
+import sys
 from pprint import pprint
 
 IGNORE_PYTHON_FILE = ["__init__.py", "__main__.py"]
+ENCODING = "utf-8" if sys.platform == "darwin" else "cp949"
 
 
 class NodeContainer:
@@ -32,7 +34,7 @@ def parse_library(library_path):
             if file.endswith('.py') and file not in IGNORE_PYTHON_FILE:
                 file_path = f"{root}/{file}"
 
-                with open(file_path, "r") as f:
+                with open(file_path, "r", encoding=ENCODING) as f:
                     code = f.read()
 
                 tree = ast.parse(code)
