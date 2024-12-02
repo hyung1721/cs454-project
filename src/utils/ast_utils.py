@@ -196,6 +196,8 @@ def get_str_bases(bases: list[ast.expr]):
             yield base.id
         elif isinstance(base, ast.Attribute):
             yield base.attr
+        elif isinstance(base, ast.Subscript):
+            continue
         else:
             raise Exception(f"{base} is not an ast.Name or ast.Attribute")
         
