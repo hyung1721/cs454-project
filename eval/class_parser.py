@@ -9,7 +9,6 @@ from typing import List, Dict
 
 class ClassParser:
     def __init__(self, cls):
-        assert len(cls) == 1
         self.cls_structure = list(cls.values())[0]
         self.funcs_name = list(self.cls_structure['functions'].keys())
         self.vars_name = self.cls_structure['variables']
