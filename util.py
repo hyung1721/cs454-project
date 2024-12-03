@@ -12,14 +12,21 @@ def printf(msg):
         print(msg)
 
 def Log_Save_Path(library_name, total_cycles, additional_naming):
+    # Create the log directory if it doesn't exist
+    log_dir = "log"
+    os.makedirs(log_dir, exist_ok=True)
+    
     if(len(additional_naming) > 0):
-        return os.path.join("log", f"{library_name}_{total_cycles}_{additional_naming}.log.txt")
+        return os.path.join(log_dir, f"{library_name}_{total_cycles}_{additional_naming}.log.txt")
     else:
-        return os.path.join("log", f"{library_name}_{total_cycles}.log.txt")
+        return os.path.join(log_dir, f"{library_name}_{total_cycles}.log.txt")
 
 def write_log(statistics, result_logs: List[Iteration_Result], metric_types: List[MetricType], library_name, total_cycles, additional_naming = ""):
-    with open(Log_Save_Path(library_name.value, total_cycles, additional_naming), "w") as file:
-        
+    # Get the log path
+    log_path = Log_Save_Path(library_name.value, total_cycles, additional_naming)
+    # Ensure the directory exists (in case it was deleted between path creation and file opening)
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    with open(log_path, "w") as file:
         for metric_type, statistic in statistics.items():
             file.write(f"{metric_type.value} {statistic[Better_Idx]}up {statistic[Static_Idx]}= {statistic[Worse_Idx]}down\n")
         file.write("\n")
@@ -29,6 +36,7 @@ def write_log(statistics, result_logs: List[Iteration_Result], metric_types: Lis
             metric_type_order += f"{metric_type}    "
         metric_type_order += "\n"
         file.write(metric_type_order)
+        
         for result_log in result_logs:
             metric_values = ""
             for metric_type in metric_types:

@@ -13,7 +13,7 @@ from src.utils.ast_utils import find_normal_methods, find_instance_fields, Metho
     MethodOccurrenceChecker, InstanceFieldOccurrenceChecker, InitMethodInjector, is_direct_self_attr, \
     SelfAttributeOccurrenceReplacer, check_inherit_abc, AbstractMethodDecoratorChecker, \
     get_str_bases, is_property_decorated_method, check_functions_equal, add_method_to_class, \
-    delete_method_from_class, SelfOccurrenceReplacer
+    delete_method_from_class, SelfOccurrenceReplacer, get_valid_bases
 
 
 class Refactor(ABC):
@@ -26,7 +26,7 @@ class Refactor(ABC):
                     self.class_names.append(node.name)
                     if any(
                             node_container.lookup_alias(base) == self.target_class_node.name
-                            for base in get_str_bases(node.bases)
+                            for base in get_str_bases(get_valid_bases(node))
                     ):
                         self.subclasses.append(node)
 
@@ -34,7 +34,7 @@ class Refactor(ABC):
         self.superclasses = []
         superclass_names = [
             self.target_node_container.lookup_alias(base)
-            for base in get_str_bases(self.target_class_node.bases)
+            for base in get_str_bases(get_valid_bases(self.target_class_node))
         ]
         for node_container in self.result.values():
             for node in node_container.nodes:
@@ -49,7 +49,7 @@ class Refactor(ABC):
                 if isinstance(node, ast.ClassDef):
                     if any(
                             node_container.lookup_alias(base) == current_node.name
-                            for base in get_str_bases(node.bases)
+                            for base in get_str_bases(get_valid_bases(node))
                     ):
                         current_subclasses.append(node)
 
@@ -157,7 +157,7 @@ class PullUpMethod(Refactor):
                 if isinstance(node, ast.ClassDef):
                     if any(
                             node_container.lookup_alias(base) == immediate_superclass.name
-                            for base in get_str_bases(node.bases)
+                            for base in get_str_bases(get_valid_bases(node))
                     ):
                         siblings.append(node)
 
@@ -394,7 +394,7 @@ class PullUpField(Refactor):
         # Find immediate superclass 
         superclass_names = [
             self.target_node_container.lookup_alias(base)
-            for base in get_str_bases(self.target_class_node.bases)
+            for base in get_str_bases(get_valid_bases(self.target_class_node))
         ]
         
         # Look for superclass definition
@@ -441,7 +441,7 @@ class PullUpField(Refactor):
                 if isinstance(node, ast.ClassDef):
                     if any(
                             container.lookup_alias(base) == self.superclass.name
-                            for base in get_str_bases(node.bases)
+                            for base in get_str_bases(get_valid_bases(node))
                     ):
                         siblings.append(node)
         return siblings
@@ -807,7 +807,7 @@ class CollapseHierarchy(Refactor):
         parents = []
         base_names = [
             self.target_node_container.lookup_alias(base)
-            for base in get_str_bases(self.target_class_node.bases)
+            for base in get_str_bases(get_valid_bases(self.target_class_node))
         ]
         
         for container in self.result.values():
@@ -965,7 +965,7 @@ class ReplaceInheritanceWithDelegation(Refactor):
         return len(self.superclasses) >= 1
 
     def _do(self):
-        superclass_expr = choice(self.target_class_node.bases) # this may be aliased
+        superclass_expr = choice(get_valid_bases(self.target_class_node)) # this may be aliased
         delegate_attr_name = f"riwd_{ast.unparse(superclass_expr).replace('.', '_')}"
 
         # Create delegation
