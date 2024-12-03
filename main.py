@@ -69,7 +69,7 @@ def is_finish_cycle(refactoring_count):
 # Main Function
 if __name__ == '__main__':
     # Target Library 설정 
-    selected_library = LN.ASCIIMatics
+    selected_library = LN.Arrow
 
     node_container_dict = parse_library(constant.Target_Library_Path(selected_library))
     
