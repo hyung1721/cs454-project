@@ -4,6 +4,7 @@ import os
 
 class LibraryName(str, Enum):
     ASCIIMatics = "asciimatics"
+    Arrow = "arrow"
 
 Iteration_Result = namedtuple('Iteration_Result', ['better_metric', 'static_metric', 'worse_metric'])
 Statistics_Unit = namedtuple('Statistics_Unit', ['better_count', 'static_count', 'worse_count'])
@@ -17,4 +18,4 @@ Base_Path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # srcÏù
 def Target_Library_Path(library_name):
     return os.path.join("refactoring", "target_libraries", library_name)
 
-DESIRED_REFACTORING_COUNT = 3
+DESIRED_REFACTORING_COUNT = 1000
