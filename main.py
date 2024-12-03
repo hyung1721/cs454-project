@@ -8,10 +8,9 @@ import constant
 from constant import Iteration_Result, Statistics_Unit, DESIRED_REFACTORING_COUNT
 from constant import Better_Idx, Static_Idx, Worse_Idx
 from constant import Agreement_Idx, Dissonant_Idx, Conflicted_Idx
-from constant import LibraryName as LN
 from evaluation import Evaluation
 from MetricType import MetricType
-from util import printf, write_log, Log_Save_Path
+from util import printf, Log_Save_Path
 import os
 
 def get_metric_types_in_paper():
