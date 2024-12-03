@@ -13,6 +13,10 @@ Better_Idx = 0
 Static_Idx = 1
 Worse_Idx = 2
 
+Agreement_Idx = 0
+Dissonant_Idx = 1
+Conflicted_Idx = 2
+
 Base_Path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # src의 상위 폴더 refactoring 기준
 
 def Target_Library_Path(library_name):

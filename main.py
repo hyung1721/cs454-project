@@ -5,8 +5,9 @@ from typing import List, Dict
 from src.core.parsing import parse_library
 from src.core.refactor import REFACTORING_TYPES
 import constant
-from constant import Iteration_Result, Statistics_Unit
-from constant import Better_Idx, Static_Idx, Worse_Idx, DESIRED_REFACTORING_COUNT
+from constant import Iteration_Result, Statistics_Unit, DESIRED_REFACTORING_COUNT
+from constant import Better_Idx, Static_Idx, Worse_Idx
+from constant import Agreement_Idx, Dissonant_Idx, Conflicted_Idx
 from constant import LibraryName as LN
 from evaluation import Evaluation
 from MetricType import MetricType
@@ -89,7 +90,13 @@ if __name__ == '__main__':
 
     metrics_origin = calculate_metrics(node_container_dict, metric_types)
     result_logs: List[Iteration_Result] = []
+    disagreement_statistics: Dict[MetricType, Dict[MetricType, List[int]]] = {}
 
+    for metric_type in metric_types:
+        disagreement_statistics[metric_type] = {}
+        for metric_type_another in metric_types:
+            if(metric_type != metric_type_another):
+                disagreement_statistics[metric_type][metric_type_another] = [0, 0, 0]
 
     log_path = Log_Save_Path(selected_library.value, DESIRED_REFACTORING_COUNT, "fix-ver")
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
@@ -104,26 +111,54 @@ if __name__ == '__main__':
         while(is_finish_cycle(refactoring_count) == False):
             print(f"Start New: {refactoring_count}")
             is_first = True        
-            #새롭게 다시 시작
+            #새로운 Cycle 시작
             classes = classes_origin.copy()
             while(len(classes) > 0 and is_finish_cycle(refactoring_count) == False):
                 target_class = classes.pop()
                 refactoring_methods = REFACTORING_TYPES.copy()
-                shuffle(refactoring_methods) # Random
+                shuffle(refactoring_methods) # refactoring methods 랜덤 순서 섞기
                 while(len(refactoring_methods) > 0 and is_finish_cycle(refactoring_count) == False):
                     refactoring_method = refactoring_methods.pop()
                     refactor = refactoring_method(base=node_container_dict, location=target_class)
                     if refactor.is_possible():
-                        refactor.do()
+                        refactor.do() # refactoring 진행
                         try_count+=1
                         metrics_before = metrics_origin if is_first else metrics_before
                         metrics_after = calculate_metrics(refactor.result, metric_types)
                         iteration_result = compare_metrics(metrics_before, metrics_after)
+                        # refactoring 성공 여부 확인
                         if(fitness_function_improves(iteration_result)):
                             print(f"{refactoring_count}th Refactoring_Success: {refactoring_method}")
                             is_first = False
                             result_logs.append(iteration_result)
                             refactoring_count+=1
+                            #disagreement 통계 과정
+                            for metric_type in iteration_result.better_metric:
+                                for metric_type_another in iteration_result.better_metric:
+                                    if(metric_type != metric_type_another):
+                                        disagreement_statistics[metric_type][metric_type_another][Agreement_Idx]+=1
+                                for metric_type_another in iteration_result.static_metric:
+                                    disagreement_statistics[metric_type][metric_type_another][Dissonant_Idx]+=1
+                                for metric_type_another in iteration_result.worse_metric:
+                                    disagreement_statistics[metric_type][metric_type_another][Conflicted_Idx]+=1
+
+                            for metric_type in iteration_result.worse_metric:
+                                for metric_type_another in iteration_result.worse_metric:
+                                    if(metric_type != metric_type_another):
+                                        disagreement_statistics[metric_type][metric_type_another][Agreement_Idx]+=1
+                                for metric_type_another in iteration_result.static_metric:
+                                    disagreement_statistics[metric_type][metric_type_another][Dissonant_Idx]+=1
+                                for metric_type_another in iteration_result.better_metric:
+                                    disagreement_statistics[metric_type][metric_type_another][Conflicted_Idx]+=1
+
+                            for metric_type in iteration_result.static_metric:
+                                for metric_type_another in iteration_result.static_metric:
+                                    if(metric_type != metric_type_another):
+                                        disagreement_statistics[metric_type][metric_type_another][Agreement_Idx]+=1
+                                for metric_type_another in iteration_result.better_metric:
+                                    disagreement_statistics[metric_type][metric_type_another][Dissonant_Idx]+=1
+                                for metric_type_another in iteration_result.worse_metric:
+                                    disagreement_statistics[metric_type][metric_type_another][Dissonant_Idx]+=1
                             metrics_before = metrics_after
                             #log file에 결과 적기
                             metric_values = ""
@@ -150,6 +185,12 @@ if __name__ == '__main__':
         for metric_type, statistic in statistics.items():
             print(f"{metric_type} {statistic[Better_Idx]}↑ {statistic[Static_Idx]}= {statistic[Worse_Idx]}↓")
             file.write(f"{metric_type.value} {statistic[Better_Idx]}up {statistic[Static_Idx]}= {statistic[Worse_Idx]}down\n")
+
+        file.write("==========================Disagreement Statistics=============================\n")
+        for metric_type, statistics in disagreement_statistics.items():
+            for metric_type_another, statistic in statistics.items():
+                file.write(f"Disagreement Statistics: {metric_type.value} vs {metric_type_another}\n")
+                file.write(f"Agreement: {statistic[Agreement_Idx]}, Dissonant:: {statistic[Dissonant_Idx]}, Conflicted: {statistic[Conflicted_Idx]}\n")
     
     # Log 저장과정 
     # 저장 위치: log Folder
