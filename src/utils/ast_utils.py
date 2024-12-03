@@ -197,9 +197,22 @@ def get_str_bases(bases: list[ast.expr]):
         elif isinstance(base, ast.Attribute):
             yield base.attr
         elif isinstance(base, ast.Subscript):
-            continue
+            # Handle the base type of the generic/subscript
+            if isinstance(base.value, ast.Name):
+                yield base.value.id
+            elif isinstance(base.value, ast.Attribute):
+                yield base.value.attr
+        elif isinstance(base, ast.Call):
+            # Try to get the function name being called
+            if isinstance(base.func, ast.Name):
+                yield base.func.id
+            elif isinstance(base.func, ast.Attribute):
+                yield base.func.attr
         else:
-            raise Exception(f"{base} is not an ast.Name or ast.Attribute")
+            print(f"Problematic node type: {type(base)}")
+            print(f"Node structure: {ast.dump(base, indent=2)}")
+            print(f"Original code: {ast.unparse(base)}")
+            raise Exception(f"{base} is not an ast.Name, ast.Attribute, ast.Subscript, or ast.Call")
         
 class DependencyVisitor(ast.NodeVisitor):
     def __init__(self):
