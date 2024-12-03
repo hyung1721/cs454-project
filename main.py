@@ -71,8 +71,7 @@ def is_finish_cycle(refactoring_count):
 # Main Function
 if __name__ == '__main__':
     # Target Library 설정 
-    selected_library = LN.Arrow
-
+    selected_library = constant.SELECTED_LIBRARY
     node_container_dict = parse_library(constant.Target_Library_Path(selected_library))
     
     classes_origin = []
@@ -169,7 +168,6 @@ if __name__ == '__main__':
                                     metric_values += f"{iteration_result.static_metric[metric_type].result}, "
                                 elif(metric_type in iteration_result.worse_metric):
                                     metric_values += f"{iteration_result.worse_metric[metric_type].result}, "
-                            metric_values += "\n"
                             file.write(metric_values)
                         else:
                             refactor.undo()

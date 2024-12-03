@@ -1,0 +1,51 @@
+MetricType.LSCC    MetricType.TCC    MetricType.SCOM    MetricType.CC    MetricType.LCOM5    
+0.0017565382256175765, 0.33765707336846373, 0.0372529331920199, 0.2928359394512639, 0.9411067281197756, 
+0.0017565382256175765, 0.33765707336846373, 0.0372529331920199, 0.2928359394512639, 0.9365630625645806, 
+0.0017565382256175765, 0.33765707336846373, 0.0372529331920199, 0.2928359394512639, 0.9354339931702893, 
+============================================================
+LSCC 1up 2= 0down
+TCC 0up 3= 0down
+SCOM 0up 3= 0down
+CC 0up 3= 0down
+LCOM5 3up 0= 0down
+==========================Disagreement Statistics=============================
+Disagreement Statistics: LSCC vs MetricType.TCC
+Agreement: 2, Dissonant:: 1, Conflicted: 0
+Disagreement Statistics: LSCC vs MetricType.SCOM
+Agreement: 2, Dissonant:: 1, Conflicted: 0
+Disagreement Statistics: LSCC vs MetricType.CC
+Agreement: 2, Dissonant:: 1, Conflicted: 0
+Disagreement Statistics: LSCC vs MetricType.LCOM5
+Agreement: 1, Dissonant:: 2, Conflicted: 0
+Disagreement Statistics: TCC vs MetricType.LSCC
+Agreement: 2, Dissonant:: 1, Conflicted: 0
+Disagreement Statistics: TCC vs MetricType.SCOM
+Agreement: 3, Dissonant:: 0, Conflicted: 0
+Disagreement Statistics: TCC vs MetricType.CC
+Agreement: 3, Dissonant:: 0, Conflicted: 0
+Disagreement Statistics: TCC vs MetricType.LCOM5
+Agreement: 0, Dissonant:: 3, Conflicted: 0
+Disagreement Statistics: SCOM vs MetricType.LSCC
+Agreement: 2, Dissonant:: 1, Conflicted: 0
+Disagreement Statistics: SCOM vs MetricType.TCC
+Agreement: 3, Dissonant:: 0, Conflicted: 0
+Disagreement Statistics: SCOM vs MetricType.CC
+Agreement: 3, Dissonant:: 0, Conflicted: 0
+Disagreement Statistics: SCOM vs MetricType.LCOM5
+Agreement: 0, Dissonant:: 3, Conflicted: 0
+Disagreement Statistics: CC vs MetricType.LSCC
+Agreement: 2, Dissonant:: 1, Conflicted: 0
+Disagreement Statistics: CC vs MetricType.TCC
+Agreement: 3, Dissonant:: 0, Conflicted: 0
+Disagreement Statistics: CC vs MetricType.SCOM
+Agreement: 3, Dissonant:: 0, Conflicted: 0
+Disagreement Statistics: CC vs MetricType.LCOM5
+Agreement: 0, Dissonant:: 3, Conflicted: 0
+Disagreement Statistics: LCOM5 vs MetricType.LSCC
+Agreement: 1, Dissonant:: 2, Conflicted: 0
+Disagreement Statistics: LCOM5 vs MetricType.TCC
+Agreement: 0, Dissonant:: 3, Conflicted: 0
+Disagreement Statistics: LCOM5 vs MetricType.SCOM
+Agreement: 0, Dissonant:: 3, Conflicted: 0
+Disagreement Statistics: LCOM5 vs MetricType.CC
+Agreement: 0, Dissonant:: 3, Conflicted: 0
