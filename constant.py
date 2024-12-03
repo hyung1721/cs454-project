@@ -18,4 +18,4 @@ Base_Path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # srcÏù
 def Target_Library_Path(library_name):
     return os.path.join("refactoring", "target_libraries", library_name)
 
-DESIRED_REFACTORING_COUNT = 1000
+DESIRED_REFACTORING_COUNT = 3

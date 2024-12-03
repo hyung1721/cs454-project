@@ -6,11 +6,12 @@ from src.core.parsing import parse_library
 from src.core.refactor import REFACTORING_TYPES
 import constant
 from constant import Iteration_Result, Statistics_Unit
-from constant import Better_Idx, Static_Idx, Worse_Idx
+from constant import Better_Idx, Static_Idx, Worse_Idx, DESIRED_REFACTORING_COUNT
 from constant import LibraryName as LN
 from evaluation import Evaluation
 from MetricType import MetricType
-from util import printf, write_log
+from util import printf, write_log, Log_Save_Path
+import os
 
 def get_metric_types_in_paper():
     metric_paper_list = []
@@ -89,43 +90,69 @@ if __name__ == '__main__':
     metrics_origin = calculate_metrics(node_container_dict, metric_types)
     result_logs: List[Iteration_Result] = []
 
-    while(is_finish_cycle(refactoring_count) == False):
-        print(f"Start New: {refactoring_count}")
-        is_first = True
-        classes = classes_origin.copy()
-        while(len(classes) > 0 and is_finish_cycle(refactoring_count) == False):
-            target_class = classes.pop()
-            refactoring_methods = REFACTORING_TYPES.copy()
-            shuffle(refactoring_methods) # Random
-            while(len(refactoring_methods) > 0 and is_finish_cycle(refactoring_count) == False):
-                refactoring_method = refactoring_methods.pop()
-                refactor = refactoring_method(base=node_container_dict, location=target_class)
-                if refactor.is_possible():
-                    refactor.do()
-                    try_count+=1
-                    metrics_before = metrics_origin if is_first else metrics_before
-                    metrics_after = calculate_metrics(refactor.result, metric_types)
-                    iteration_result = compare_metrics(metrics_before, metrics_after)
-                    if(fitness_function_improves(iteration_result)):
-                        is_first = False
-                        result_logs.append(iteration_result)
-                        refactoring_count+=1
-                        metrics_before = metrics_after
-                        print(f"{refactoring_count}th Refactoring_Success: {refactoring_method}")
-                    else:
-                        refactor.undo()
-                    if(try_count%100 == 0):
-                        print(f"We tried {try_count} times and succeed {refactoring_count} times")
-                        print(f"classes remains {len(classes)} and refactoring_methods remains {len(refactoring_methods)}")
+
+    log_path = Log_Save_Path(selected_library.value, DESIRED_REFACTORING_COUNT, "fix-ver")
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    with open(log_path, "w") as file:
+        #Log File에 Metric 순서 적는 코드
+        metric_type_order = ""
+        for metric_type in metric_types:
+            metric_type_order += f"{metric_type}    "
+        metric_type_order += "\n"
+        file.write(metric_type_order)
+        # End
+        while(is_finish_cycle(refactoring_count) == False):
+            print(f"Start New: {refactoring_count}")
+            is_first = True        
+            #새롭게 다시 시작
+            classes = classes_origin.copy()
+            while(len(classes) > 0 and is_finish_cycle(refactoring_count) == False):
+                target_class = classes.pop()
+                refactoring_methods = REFACTORING_TYPES.copy()
+                shuffle(refactoring_methods) # Random
+                while(len(refactoring_methods) > 0 and is_finish_cycle(refactoring_count) == False):
+                    refactoring_method = refactoring_methods.pop()
+                    refactor = refactoring_method(base=node_container_dict, location=target_class)
+                    if refactor.is_possible():
+                        refactor.do()
+                        try_count+=1
+                        metrics_before = metrics_origin if is_first else metrics_before
+                        metrics_after = calculate_metrics(refactor.result, metric_types)
+                        iteration_result = compare_metrics(metrics_before, metrics_after)
+                        if(fitness_function_improves(iteration_result)):
+                            print(f"{refactoring_count}th Refactoring_Success: {refactoring_method}")
+                            is_first = False
+                            result_logs.append(iteration_result)
+                            refactoring_count+=1
+                            metrics_before = metrics_after
+                            #log file에 결과 적기
+                            metric_values = ""
+                            for metric_type in metric_types:
+                                if(metric_type in iteration_result.better_metric):
+                                    metric_values += f"{iteration_result.better_metric[metric_type].result}, "
+                                elif(metric_type in iteration_result.static_metric):
+                                    metric_values += f"{iteration_result.static_metric[metric_type].result}, "
+                                elif(metric_type in iteration_result.worse_metric):
+                                    metric_values += f"{iteration_result.worse_metric[metric_type].result}, "
+                            metric_values += "\n"
+                            file.write(metric_values)
+                        else:
+                            refactor.undo()
+                        if(try_count%100 == 0):
+                            print(f"We tried {try_count} times and succeed {refactoring_count} times")
+                            print(f"classes remains {len(classes)} and refactoring_methods remains {len(refactoring_methods)}")
+            # 새롭게 시작하는 부분 Data 구분 짓기
+            file.write("============================================================\n")
                 
     
-    # Print Table3 in Paper
-    statistics = make_table3_statistics(result_logs, metric_types)
-    for metric_type, statistic in statistics.items():
-        print(f"{metric_type} {statistic[Better_Idx]}↑ {statistic[Static_Idx]}= {statistic[Worse_Idx]}↓")
+        # Print Table3 in Paper
+        statistics = make_table3_statistics(result_logs, metric_types)
+        for metric_type, statistic in statistics.items():
+            print(f"{metric_type} {statistic[Better_Idx]}↑ {statistic[Static_Idx]}= {statistic[Worse_Idx]}↓")
+            file.write(f"{metric_type.value} {statistic[Better_Idx]}up {statistic[Static_Idx]}= {statistic[Worse_Idx]}down\n")
     
     # Log 저장과정 
     # 저장 위치: log Folder
     # file이름 형식: [selected_library]_[refactoring_count]_[additional_naming].log.txt
     # Ex) asciimatics_3_test.log.txt
-    write_log(statistics, result_logs, metric_types, selected_library, refactoring_count, additional_naming="")
+    # write_log(statistics, result_logs, metric_types, selected_library, refactoring_count, additional_naming="")

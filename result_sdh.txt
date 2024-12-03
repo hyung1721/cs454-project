@@ -1,0 +1,53 @@
+ascii
+
+Spearman Rank Correlation Matrix:
+           LSCC       TCC      SCOM        CC
+TCC    0.040332  
+SCOM   0.126250  0.544641  
+CC     0.138312  0.668409  0.389420  
+LCOM5 -0.374344 -0.514500 -0.555070 -0.536024
+
+pygments
+
+Spearman Rank Correlation Matrix:
+           LSCC       TCC      SCOM        CC
+TCC   -0.748591  
+SCOM  -0.707614  0.920797  
+CC    -0.486610  0.721951  0.395963 
+LCOM5 -0.404974 -0.250997 -0.258061 -0.144647 
+
+sphinx
+
+Spearman Rank Correlation Matrix:
+           LSCC       TCC      SCOM        CC 
+TCC   -0.329300 
+SCOM   0.171967  0.263182 
+CC    -0.125438  0.806490  0.509153 
+LCOM5 -0.328976  0.054545 -0.654164 -0.147756
+
+yaml
+
+Spearman Rank Correlation Matrix:
+           LSCC       TCC      SCOM        CC 
+TCC    0.218180
+SCOM   0.323648  0.261380 
+CC     0.351708  0.772756 -0.194699 
+LCOM5 -0.664506 -0.223914 -0.157460 -0.461798
+
+jinja2
+
+Spearman Rank Correlation Matrix:
+           LSCC       TCC      SCOM        CC 
+TCC   -0.001474 
+SCOM   0.026580  0.920562 
+CC    -0.006889  0.978239  0.892480  
+LCOM5  0.009280 -0.504393 -0.557421 -0.510710
+
+arrow
+
+Spearman Rank Correlation Matrix:
+           LSCC       TCC      SCOM        CC 
+TCC   -0.053933 
+SCOM   0.369530  0.264545 
+CC    -0.383734  0.278367 -0.574624 
+LCOM5 -0.428850  0.055219  0.227719 -0.198170
