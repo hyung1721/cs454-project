@@ -57,7 +57,7 @@ def get_all_subclasses(class_node: ClassDef, containers: dict[str, NodeContainer
             if isinstance(node, ClassDef):
                 if any(
                     container.lookup_alias(base) == class_node.name
-                    for base in get_str_bases(node.bases)
+                    for base in get_str_bases(get_valid_bases(node))
                 ):
                     subclasses.append(node)
     return subclasses
@@ -155,7 +155,7 @@ def check_inherit_abc(node: ast.ClassDef, remove_abc: bool = False):
     result = False
 
     abc_base_idx = -1
-    for base_idx, base in enumerate(node.bases):
+    for base_idx, base in enumerate(get_valid_bases(node)):
         if isinstance(base, ast.Name) and base.id == "ABC":
             abc_base_idx = base_idx
             result = True
@@ -188,6 +188,10 @@ def check_inherit_abc(node: ast.ClassDef, remove_abc: bool = False):
             node.keywords.pop(abc_keyword_idx)
 
     return result
+
+
+def get_valid_bases(node: ast.ClassDef):
+    return [base for base in node.bases if isinstance(base, ast.Name | ast.Attribute)]
 
 
 def get_str_bases(bases: list[ast.expr]):
