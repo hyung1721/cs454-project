@@ -167,6 +167,7 @@ if __name__ == '__main__':
                                     metric_values += f"{iteration_result.static_metric[metric_type].result}, "
                                 elif(metric_type in iteration_result.worse_metric):
                                     metric_values += f"{iteration_result.worse_metric[metric_type].result}, "
+                            metric_values += "\n"
                             file.write(metric_values)
                         else:
                             refactor.undo()
