@@ -58,14 +58,33 @@ def make_table3_statistics(result_logs: List[Iteration_Result], metric_type_list
                 statistics[metric_type][Worse_Idx]+=1
     return statistics
 
-def fitness_function_improves(iteration_result: Iteration_Result):
-    printf(f"iteration result's better_metric count is {len(iteration_result.better_metric)}")
-    printf(f"iteration result's static_metric count is {len(iteration_result.static_metric)}")
-    printf(f"iteration result's worse_metric count is {len(iteration_result.worse_metric)}")
-    return len(iteration_result.better_metric) > 0
+def fitness_function_improves(iteration_result: Iteration_Result, improve_check_metric_types):
+    for improve_check_metric_type in improve_check_metric_types:
+        if improve_check_metric_type in iteration_result.better_metric:
+            return True
+    return False
 
 def is_finish_cycle(refactoring_count):
     return refactoring_count >= constant.DESIRED_REFACTORING_COUNT
+
+def check_conflicted_refactoring(iteration_result: Iteration_Result, improve_check_metric_types, whole_metic_types):
+    not_improve_check_metric_count = len(whole_metic_types) - len(improve_check_metric_types)
+    if not_improve_check_metric_count == 0:
+        return 0
+    
+    conflicted_count = 0
+    for metric_type in iteration_result.worse_metric:
+        if metric_type not in improve_check_metric_types:
+            conflicted_count+=1
+            
+    for metric_type in iteration_result.static_metric:
+        if metric_type not in improve_check_metric_types:
+            conflicted_count+=1
+    
+    if conflicted_count == not_improve_check_metric_count:
+        return 1
+    return 0
+
 
 # Main Function
 if __name__ == '__main__':
@@ -81,10 +100,12 @@ if __name__ == '__main__':
                 classes_origin.append((file_path, idx))
     # Metric Types for Eval
     metric_types = get_metric_types_in_paper()
+    improve_check_metric_types = get_metric_types_in_paper()
     
-    # Paper Algorithm Start
+    # Main Algorithm Start
     refactoring_count = 0
     try_count = 0
+    conflicted_refactoring_count = 0
 
     metrics_origin = calculate_metrics(node_container_dict, metric_types)
     result_logs: List[Iteration_Result] = []
@@ -125,11 +146,12 @@ if __name__ == '__main__':
                         metrics_after = calculate_metrics(refactor.result, metric_types)
                         iteration_result = compare_metrics(metrics_before, metrics_after)
                         # refactoring 성공 여부 확인
-                        if(fitness_function_improves(iteration_result)):
+                        if(fitness_function_improves(iteration_result, improve_check_metric_types)):
                             print(f"{refactoring_count}th Refactoring_Success: {refactoring_method}")
                             is_first = False
                             result_logs.append(iteration_result)
                             refactoring_count+=1
+                            conflicted_refactoring_count += check_conflicted_refactoring(iteration_result, improve_check_metric_types, metric_types)
                             #disagreement 통계 과정
                             for metric_type in iteration_result.better_metric:
                                 for metric_type_another in iteration_result.better_metric:
