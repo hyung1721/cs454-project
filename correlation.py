@@ -9,7 +9,10 @@ def compute_spearman_rank_correlation(file_path):
         "TCC": [],
         "SCOM": [],
         "CC": [],
-        "LCOM5": []
+        "LCOM5": [],
+        "CBO": [],
+        "RFC": [],
+        "DIT": []
     }
 
     # lines = list(set(lines))
@@ -23,6 +26,9 @@ def compute_spearman_rank_correlation(file_path):
             data["SCOM"].append(values[2])
             data["CC"].append(values[3])
             data["LCOM5"].append(values[4])
+            data["CBO"].append(values[5])
+            data["RFC"].append(values[6])
+            data["DIT"].append(values[7])
 
     # for datas in data:
     #     print(data[datas])

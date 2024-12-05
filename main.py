@@ -19,6 +19,9 @@ def get_metric_types_in_paper():
         if metric_Type == MetricType.PAPER:
             break
         metric_paper_list.append(metric_Type)
+    metric_paper_list.append(MetricType.CBO)
+    metric_paper_list.append(MetricType.RFC)
+    metric_paper_list.append(MetricType.DIT)
     return metric_paper_list
 
 def calculate_metrics(node_container_dict, metric_type_list):
