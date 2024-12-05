@@ -19,10 +19,14 @@ def get_metric_types_in_paper():
         if metric_Type == MetricType.PAPER:
             break
         metric_paper_list.append(metric_Type)
-    metric_paper_list.append(MetricType.CBO)
-    metric_paper_list.append(MetricType.RFC)
-    metric_paper_list.append(MetricType.DIT)
     return metric_paper_list
+
+def get_coupling_metric_types():
+    metric_types = []
+    metric_types.append(MetricType.CBO)
+    metric_types.append(MetricType.RFC)
+    metric_types.append(MetricType.DIT)
+    return metric_types
 
 def calculate_metrics(node_container_dict, metric_type_list):
     result = {}
@@ -101,9 +105,10 @@ if __name__ == '__main__':
         for idx, node in enumerate(node_container.nodes):
             if isinstance(node, ast.ClassDef):
                 classes_origin.append((file_path, idx))
-    # Metric Types for Eval
-    metric_types = get_metric_types_in_paper()
-    improve_check_metric_types = get_metric_types_in_paper()
+    
+    # Metric Types 설정
+    metric_types = get_coupling_metric_types()
+    improve_check_metric_types = get_coupling_metric_types()
     
     # Main Algorithm Start
     refactoring_count = 0
