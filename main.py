@@ -108,7 +108,8 @@ if __name__ == '__main__':
     
     # Metric Types 설정
     metric_types = get_coupling_metric_types()
-    improve_check_metric_types = get_coupling_metric_types()
+    # refactoring 적용을 결정할 때 기준이 되는 type들
+    metric_types_for_refactoring_check = get_coupling_metric_types()
     
     # Main Algorithm Start
     refactoring_count = 0
@@ -154,12 +155,12 @@ if __name__ == '__main__':
                         metrics_after = calculate_metrics(refactor.result, metric_types)
                         iteration_result = compare_metrics(metrics_before, metrics_after)
                         # refactoring 성공 여부 확인
-                        if(fitness_function_improves(iteration_result, improve_check_metric_types)):
+                        if(fitness_function_improves(iteration_result, metric_types_for_refactoring_check)):
                             print(f"{refactoring_count}th Refactoring_Success: {refactoring_method}")
                             is_first = False
                             result_logs.append(iteration_result)
                             refactoring_count+=1
-                            conflicted_refactoring_count += check_conflicted_refactoring(iteration_result, improve_check_metric_types, metric_types)
+                            conflicted_refactoring_count += check_conflicted_refactoring(iteration_result, metric_types_for_refactoring_check, metric_types)
                             #disagreement 통계 과정
                             for metric_type in iteration_result.better_metric:
                                 for metric_type_another in iteration_result.better_metric:
