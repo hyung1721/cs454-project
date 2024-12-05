@@ -1,0 +1,135 @@
+MetricType.LSCC    MetricType.TCC    MetricType.SCOM    MetricType.CC    MetricType.LCOM5    MetricType.CBO    MetricType.RFC    MetricType.DIT    
+0.01307946061693385, 0.40150375939849625, 0.08953115685408268, 0.15537532584104222, 0.8912422155345949, 1.3135593220338984, 7.601694915254237, 4, 
+0.012976195337062594, 0.3989560029828486, 0.09027372007280539, 0.1541779366772711, 0.8915537265813084, 1.3247863247863247, 7.666666666666667, 3, 
+0.012968804766912022, 0.3967371153133111, 0.09022300174227395, 0.153382236868783, 0.8921677061700072, 1.3448275862068966, 7.818965517241379, 3, 
+0.012984255569347358, 0.3989560029828486, 0.09027372007280539, 0.1541779366772711, 0.8915537265813084, 1.3135593220338984, 7.610169491525424, 4, 
+0.012976195337062594, 0.3989560029828486, 0.09027372007280539, 0.1541779366772711, 0.8915537265813084, 1.3247863247863247, 7.666666666666667, 3, 
+0.012782205866788247, 0.39502967359050445, 0.08924031000538186, 0.1532302114665344, 0.8922178116577498, 1.3189655172413792, 7.663793103448276, 3, 
+0.012976195337062594, 0.3989560029828486, 0.09027372007280539, 0.1541779366772711, 0.8915537265813084, 1.3247863247863247, 7.666666666666667, 3, 
+0.012971650010197839, 0.39821362113881653, 0.0901853319656845, 0.15389104062837405, 0.8918068244175799, 1.3247863247863247, 7.6752136752136755, 3, 
+0.012988816547262137, 0.39970171513795677, 0.0905280120512396, 0.15430888018069783, 0.8911566468115004, 1.3162393162393162, 7.6581196581196584, 3, 
+0.012907680435400675, 0.39858314690529456, 0.09001501030991652, 0.15402138852089955, 0.8920634145720452, 1.3247863247863247, 7.666666666666667, 3, 
+============================================================
+LSCC 4up 0= 6down
+TCC 4up 1= 5down
+SCOM 4up 1= 5down
+CC 4up 1= 5down
+LCOM5 4up 1= 5down
+CBO 4up 1= 5down
+RFC 6up 0= 4down
+DIT 2up 6= 2down
+==========================Disagreement Statistics=============================
+Disagreement Statistics: LSCC vs MetricType.TCC
+Agreement: 9, Dissonant:: 1, Conflicted: 0
+Disagreement Statistics: LSCC vs MetricType.SCOM
+Agreement: 7, Dissonant:: 1, Conflicted: 2
+Disagreement Statistics: LSCC vs MetricType.CC
+Agreement: 9, Dissonant:: 1, Conflicted: 0
+Disagreement Statistics: LSCC vs MetricType.LCOM5
+Agreement: 9, Dissonant:: 1, Conflicted: 0
+Disagreement Statistics: LSCC vs MetricType.CBO
+Agreement: 7, Dissonant:: 1, Conflicted: 2
+Disagreement Statistics: LSCC vs MetricType.RFC
+Agreement: 2, Dissonant:: 0, Conflicted: 8
+Disagreement Statistics: LSCC vs MetricType.DIT
+Agreement: 0, Dissonant:: 6, Conflicted: 4
+Disagreement Statistics: TCC vs MetricType.LSCC
+Agreement: 9, Dissonant:: 1, Conflicted: 0
+Disagreement Statistics: TCC vs MetricType.SCOM
+Agreement: 8, Dissonant:: 0, Conflicted: 2
+Disagreement Statistics: TCC vs MetricType.CC
+Agreement: 10, Dissonant:: 0, Conflicted: 0
+Disagreement Statistics: TCC vs MetricType.LCOM5
+Agreement: 10, Dissonant:: 0, Conflicted: 0
+Disagreement Statistics: TCC vs MetricType.CBO
+Agreement: 6, Dissonant:: 2, Conflicted: 2
+Disagreement Statistics: TCC vs MetricType.RFC
+Agreement: 2, Dissonant:: 1, Conflicted: 7
+Disagreement Statistics: TCC vs MetricType.DIT
+Agreement: 0, Dissonant:: 7, Conflicted: 3
+Disagreement Statistics: SCOM vs MetricType.LSCC
+Agreement: 7, Dissonant:: 1, Conflicted: 2
+Disagreement Statistics: SCOM vs MetricType.TCC
+Agreement: 8, Dissonant:: 0, Conflicted: 2
+Disagreement Statistics: SCOM vs MetricType.CC
+Agreement: 8, Dissonant:: 0, Conflicted: 2
+Disagreement Statistics: SCOM vs MetricType.LCOM5
+Agreement: 8, Dissonant:: 0, Conflicted: 2
+Disagreement Statistics: SCOM vs MetricType.CBO
+Agreement: 4, Dissonant:: 2, Conflicted: 4
+Disagreement Statistics: SCOM vs MetricType.RFC
+Agreement: 4, Dissonant:: 1, Conflicted: 5
+Disagreement Statistics: SCOM vs MetricType.DIT
+Agreement: 2, Dissonant:: 7, Conflicted: 1
+Disagreement Statistics: CC vs MetricType.LSCC
+Agreement: 9, Dissonant:: 1, Conflicted: 0
+Disagreement Statistics: CC vs MetricType.TCC
+Agreement: 10, Dissonant:: 0, Conflicted: 0
+Disagreement Statistics: CC vs MetricType.SCOM
+Agreement: 8, Dissonant:: 0, Conflicted: 2
+Disagreement Statistics: CC vs MetricType.LCOM5
+Agreement: 10, Dissonant:: 0, Conflicted: 0
+Disagreement Statistics: CC vs MetricType.CBO
+Agreement: 6, Dissonant:: 2, Conflicted: 2
+Disagreement Statistics: CC vs MetricType.RFC
+Agreement: 2, Dissonant:: 1, Conflicted: 7
+Disagreement Statistics: CC vs MetricType.DIT
+Agreement: 0, Dissonant:: 7, Conflicted: 3
+Disagreement Statistics: LCOM5 vs MetricType.LSCC
+Agreement: 9, Dissonant:: 1, Conflicted: 0
+Disagreement Statistics: LCOM5 vs MetricType.TCC
+Agreement: 10, Dissonant:: 0, Conflicted: 0
+Disagreement Statistics: LCOM5 vs MetricType.SCOM
+Agreement: 8, Dissonant:: 0, Conflicted: 2
+Disagreement Statistics: LCOM5 vs MetricType.CC
+Agreement: 10, Dissonant:: 0, Conflicted: 0
+Disagreement Statistics: LCOM5 vs MetricType.CBO
+Agreement: 6, Dissonant:: 2, Conflicted: 2
+Disagreement Statistics: LCOM5 vs MetricType.RFC
+Agreement: 2, Dissonant:: 1, Conflicted: 7
+Disagreement Statistics: LCOM5 vs MetricType.DIT
+Agreement: 0, Dissonant:: 7, Conflicted: 3
+Disagreement Statistics: CBO vs MetricType.LSCC
+Agreement: 7, Dissonant:: 1, Conflicted: 2
+Disagreement Statistics: CBO vs MetricType.TCC
+Agreement: 6, Dissonant:: 2, Conflicted: 2
+Disagreement Statistics: CBO vs MetricType.SCOM
+Agreement: 4, Dissonant:: 2, Conflicted: 4
+Disagreement Statistics: CBO vs MetricType.CC
+Agreement: 6, Dissonant:: 2, Conflicted: 2
+Disagreement Statistics: CBO vs MetricType.LCOM5
+Agreement: 6, Dissonant:: 2, Conflicted: 2
+Disagreement Statistics: CBO vs MetricType.RFC
+Agreement: 0, Dissonant:: 1, Conflicted: 9
+Disagreement Statistics: CBO vs MetricType.DIT
+Agreement: 1, Dissonant:: 5, Conflicted: 4
+Disagreement Statistics: RFC vs MetricType.LSCC
+Agreement: 2, Dissonant:: 0, Conflicted: 8
+Disagreement Statistics: RFC vs MetricType.TCC
+Agreement: 2, Dissonant:: 1, Conflicted: 7
+Disagreement Statistics: RFC vs MetricType.SCOM
+Agreement: 4, Dissonant:: 1, Conflicted: 5
+Disagreement Statistics: RFC vs MetricType.CC
+Agreement: 2, Dissonant:: 1, Conflicted: 7
+Disagreement Statistics: RFC vs MetricType.LCOM5
+Agreement: 2, Dissonant:: 1, Conflicted: 7
+Disagreement Statistics: RFC vs MetricType.CBO
+Agreement: 0, Dissonant:: 1, Conflicted: 9
+Disagreement Statistics: RFC vs MetricType.DIT
+Agreement: 4, Dissonant:: 6, Conflicted: 0
+Disagreement Statistics: DIT vs MetricType.LSCC
+Agreement: 0, Dissonant:: 6, Conflicted: 4
+Disagreement Statistics: DIT vs MetricType.TCC
+Agreement: 0, Dissonant:: 7, Conflicted: 3
+Disagreement Statistics: DIT vs MetricType.SCOM
+Agreement: 2, Dissonant:: 7, Conflicted: 1
+Disagreement Statistics: DIT vs MetricType.CC
+Agreement: 0, Dissonant:: 7, Conflicted: 3
+Disagreement Statistics: DIT vs MetricType.LCOM5
+Agreement: 0, Dissonant:: 7, Conflicted: 3
+Disagreement Statistics: DIT vs MetricType.CBO
+Agreement: 1, Dissonant:: 5, Conflicted: 4
+Disagreement Statistics: DIT vs MetricType.RFC
+Agreement: 4, Dissonant:: 6, Conflicted: 0
+conflicted refactoring counts: 5/10
+static refactoring counts: 0/10

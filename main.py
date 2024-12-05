@@ -82,6 +82,21 @@ def fitness_function_improves(iteration_result: Iteration_Result, improve_check_
 def is_finish_cycle(refactoring_count):
     return refactoring_count >= constant.DESIRED_REFACTORING_COUNT
 
+def check_static_refactoring(iteration_result: Iteration_Result, improve_check_metric_types, whole_metic_types):
+    not_improve_check_metric_count = len(whole_metic_types) - len(improve_check_metric_types)
+    if not_improve_check_metric_count == 0:
+        return 0
+    
+    static_count = 0
+    for metric_type in iteration_result.static_metric:
+        if metric_type not in improve_check_metric_types:
+            static_count+=1
+    
+    if static_count == not_improve_check_metric_count:
+        return 1
+    return 0
+
+
 def check_conflicted_refactoring(iteration_result: Iteration_Result, improve_check_metric_types, whole_metic_types):
     not_improve_check_metric_count = len(whole_metic_types) - len(improve_check_metric_types)
     if not_improve_check_metric_count == 0:
@@ -117,12 +132,13 @@ if __name__ == '__main__':
     # Metric Types 설정
     metric_types = get_all_metric_types()
     # refactoring 적용을 결정할 때 기준이 되는 type들
-    metric_types_for_refactoring_check = get_metric_types_in_paper()
+    metric_types_for_refactoring_check = get_coupling_metric_types()
     
     # Main Algorithm Start
     refactoring_count = 0
     try_count = 0
     conflicted_refactoring_count = 0
+    static_refactoring_count = 0
 
     metrics_origin = calculate_metrics(node_container_dict, metric_types)
     result_logs: List[Iteration_Result] = []
@@ -169,6 +185,7 @@ if __name__ == '__main__':
                             result_logs.append(iteration_result)
                             refactoring_count+=1
                             conflicted_refactoring_count += check_conflicted_refactoring(iteration_result, metric_types_for_refactoring_check, metric_types)
+                            static_refactoring_count += check_static_refactoring(iteration_result, metric_types_for_refactoring_check, metric_types)
                             #disagreement 통계 과정
                             for metric_type in iteration_result.better_metric:
                                 for metric_type_another in iteration_result.better_metric:
@@ -230,6 +247,7 @@ if __name__ == '__main__':
                 file.write(f"Agreement: {statistic[Agreement_Idx]}, Dissonant:: {statistic[Dissonant_Idx]}, Conflicted: {statistic[Conflicted_Idx]}\n")
         
         file.write(f"conflicted refactoring counts: {conflicted_refactoring_count}/{refactoring_count}\n")
+        file.write(f"static refactoring counts: {static_refactoring_count}/{refactoring_count}\n")
     
     # Log 저장과정 
     # 저장 위치: log Folder

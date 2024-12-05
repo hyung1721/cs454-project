@@ -6,9 +6,9 @@ class LibraryName(str, Enum):
     ASCIIMatics = "asciimatics"
     Arrow = "arrow"
 
-SELECTED_LIBRARY = LibraryName.ASCIIMatics
+SELECTED_LIBRARY = LibraryName.Arrow
 
-DESIRED_REFACTORING_COUNT = 10
+DESIRED_REFACTORING_COUNT = 1000
 
 Iteration_Result = namedtuple('Iteration_Result', ['better_metric', 'static_metric', 'worse_metric'])
 Statistics_Unit = namedtuple('Statistics_Unit', ['better_count', 'static_count', 'worse_count'])
