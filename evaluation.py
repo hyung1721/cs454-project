@@ -4,11 +4,15 @@ from eval.metrics import Weight, Metric
 from eval.class_parser import ClassParser, create_structure
 from src.core.parsing import NodeContainer
 from MetricType import MetricType
+from src.core.parsing import parse_library, get_full_inheritance_dict
 
 class Evaluation:
     def __init__(self, node_containers, metric_type:MetricType):
         self.metric_type = metric_type
-        self.result = self._evaluate(node_containers)
+        if metric_type != MetricType.DIT:
+            self.result = self._evaluate(node_containers)
+        else:
+            self.result = self._evaluate_dit(node_containers)
 
     def _metric(self, cls_parser:ClassParser):
         return Metric(self.metric_type).value(cls_parser)
@@ -31,11 +35,25 @@ class Evaluation:
                 total_metric += weight * metric
                 total_weight += weight
         return total_metric/total_weight
+    
+    def _evaluate_dit(self, node_containers):
+        inheritance_dict = get_full_inheritance_dict(node_containers)
+        cache = {}
+        def dfs(class_path):
+            if class_path in cache:
+                return cache[class_path]
+            if not inheritance_dict[class_path]:
+                cache[class_path] = 0
+                return 0
+            max_depth = max(dfs(parent) for parent in inheritance_dict[class_path])
+            cache[class_path] = max_depth + 1
+            return max_depth + 1
+        return max(dfs(cls) for cls in inheritance_dict)
         
     def _is_higher_better(self)->bool:
         if self.metric_type in {MetricType.LSCC, MetricType.TCC, MetricType.CC, MetricType.SCOM, MetricType.RFC, MetricType.FANIN}:
             return True
-        elif self.metric_type in {MetricType.LCOM5, MetricType.CBO, MetricType.FANOUT, MetricType.CA}:
+        elif self.metric_type in {MetricType.LCOM5, MetricType.CBO, MetricType.FANOUT, MetricType.CA, MetricType.RFC, MetricType.DIT}:
             return False
         assert False
 

@@ -12,3 +12,4 @@ class MetricType(str, Enum):
     FANIN = "FANIN"
     FANOUT = "FANOUT"
     CA = "CA"
+    DIT = "DIT"

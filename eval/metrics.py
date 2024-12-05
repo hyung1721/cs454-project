@@ -102,25 +102,10 @@ class Metric:
         return (k - sigma / l) / (k - 1)
     
     def _CBO(self, cls: ClassParser):
-        count = 0
-        methods = cls.M()
-        for _, method in methods.items():
-            for var in method['variables']:
-                if '.' in var and not var.startswith(cls.cls_structure['name']):
-                    count += 1
-        return count
+        return cls.CBO_count()
 
     def _RFC(self, cls: ClassParser):
-        methods = cls.M()
-        rfc_count = 0
-        for method_name, method in methods.items():
-            if not method_name.startswith('_') or method_name.startswith('__') and method_name.endswith('__'):
-                # Count public methods and special methods (e.g., __init__)
-                rfc_count += 1
-                for var in method['variables']:
-                    if '.' in var:  # Assume this means a method call to another class
-                        rfc_count += 1
-        return rfc_count
+        return cls.RFC_count()
 
     def _FanIn(self, cls: ClassParser):
         fan_in_count = 0
@@ -194,10 +179,12 @@ class Weight:
         return l * k
     
     def _CBO(self, cls: ClassParser):
-        return NotImplemented
+        # CRACK: 평균 계산하도록 넣어둠.
+        return 1
 
     def _RFC(self, cls: ClassParser):
-        return NotImplemented
+        # CRACK: 평균 계산하도록 넣어둠.
+        return 1
 
     def _FanIn(self, cls: ClassParser):
         return NotImplemented

@@ -35,6 +35,12 @@ class ClassParser:
     
     def A(self) -> List[str]:
         return self.cls_structure['variables']
+    
+    def CBO_count(self):
+        return self.cls_structure['cbo_count']
+    
+    def RFC_count(self):
+        return self.cls_structure['rfc_count']
        
 def cau(m1:Dict, m2:Dict) -> int:
     if len(set(m1['variables']) & set(m2['variables'])) > 0:
@@ -85,6 +91,25 @@ def create_structure(file_ast_node):
             for method_name, method in class_method_name_to_method.items()
         }
 
+        # new: CBO,RFC counting logic
+        referenced_classes = set()
+        referenced_methods = set()
+        for method in class_methods:
+            for node in ast.walk(method):
+                if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                    # Check if the call is on an instance or class
+                    if isinstance(node.func.value, ast.Name):
+                        referenced_classes.add(node.func.value.id)
+                        referenced_methods.add(f"{node.func.value.id}.{node.func.attr}")
+        referenced_classes.discard(class_name)
+        referenced_methods = {
+            method for method in referenced_methods
+            if not method.startswith(f"{class_name}.")
+        }
+
+        # Calculate RFC count
+        rfc_count = len(referenced_methods) + len(class_method_name_to_method)
+
         result[class_name]["cohesion"] = None
         result[class_name]["lineno"] = module_class.lineno
         result[class_name]["col_offset"] = module_class.col_offset
@@ -98,6 +123,8 @@ def create_structure(file_ast_node):
             }
             for method_name in class_method_name_to_method.keys()
         }
+        result[class_name]["cbo_count"] = len(referenced_classes)
+        result[class_name]["rfc_count"] = rfc_count
 
     return ClassParser(result)
 

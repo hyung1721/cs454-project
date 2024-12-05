@@ -19,6 +19,9 @@ def get_metric_types_in_paper():
         if metric_Type == MetricType.PAPER:
             break
         metric_paper_list.append(metric_Type)
+    metric_paper_list.append(MetricType.CBO)
+    metric_paper_list.append(MetricType.RFC)
+    metric_paper_list.append(MetricType.DIT)
     return metric_paper_list
 
 def calculate_metrics(node_container_dict, metric_type_list):
@@ -117,7 +120,7 @@ if __name__ == '__main__':
             if(metric_type != metric_type_another):
                 disagreement_statistics[metric_type][metric_type_another] = [0, 0, 0]
 
-    log_path = Log_Save_Path(selected_library.value, DESIRED_REFACTORING_COUNT, "fix-ver")
+    log_path = Log_Save_Path(selected_library.value, DESIRED_REFACTORING_COUNT, "fix-ver2")
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
     with open(log_path, "w") as file:
         #Log File에 Metric 순서 적는 코드
