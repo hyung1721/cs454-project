@@ -21,12 +21,6 @@ class Metric:
             return self._CBO(cls)
         elif self.metric_type == MetricType.RFC:
             return self._RFC(cls)
-        elif self.metric_type == MetricType.FANIN:
-            return self._FanIn(cls)
-        elif self.metric_type == MetricType.FANOUT:
-            return self._FanOut(cls)
-        elif self.metric_type == MetricType.CA:
-            return self._Ca(cls)
         else:
             raise ValueError(f"Unsupported metric type: {self.metric_type}")
 
@@ -149,12 +143,6 @@ class Weight:
             return self._CBO(cls)
         elif self.metric_type == MetricType.RFC:
             return self._RFC(cls)
-        elif self.metric_type == MetricType.FANIN:
-            return self._FanIn(cls)
-        elif self.metric_type == MetricType.FANOUT:
-            return self._FanOut(cls)
-        elif self.metric_type == MetricType.CA:
-            return self._Ca(cls)
         else:
             raise ValueError(f"Unsupported metric type: {self.metric_type}")
         
@@ -196,8 +184,8 @@ class Weight:
         return NotImplemented
 
 def evaluate_improvement(metric_type, before_metrics, after_metrics) -> str:
-    lower_is_better = {MetricType.CBO, MetricType.FANOUT, MetricType.CA}
-    higher_is_better = {MetricType.LSCC, MetricType.TCC, MetricType.CC, MetricType.SCOM, MetricType.LCOM5, MetricType.RFC, MetricType.FANIN}
+    lower_is_better = {MetricType.CBO}
+    higher_is_better = {MetricType.LSCC, MetricType.TCC, MetricType.CC, MetricType.SCOM, MetricType.LCOM5, MetricType.RFC}
 
     if metric_type in lower_is_better:
         return True if after_metrics < before_metrics else False

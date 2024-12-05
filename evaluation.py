@@ -51,9 +51,9 @@ class Evaluation:
         return max(dfs(cls) for cls in inheritance_dict)
         
     def _is_higher_better(self)->bool:
-        if self.metric_type in {MetricType.LSCC, MetricType.TCC, MetricType.CC, MetricType.SCOM, MetricType.RFC, MetricType.FANIN}:
+        if self.metric_type in {MetricType.LSCC, MetricType.TCC, MetricType.CC, MetricType.SCOM, MetricType.RFC}:
             return True
-        elif self.metric_type in {MetricType.LCOM5, MetricType.CBO, MetricType.FANOUT, MetricType.CA, MetricType.RFC, MetricType.DIT}:
+        elif self.metric_type in {MetricType.LCOM5, MetricType.CBO, MetricType.RFC, MetricType.DIT}:
             return False
         assert False
 

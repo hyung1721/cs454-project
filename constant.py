@@ -8,7 +8,7 @@ class LibraryName(str, Enum):
 
 SELECTED_LIBRARY = LibraryName.ASCIIMatics
 
-DESIRED_REFACTORING_COUNT = 2
+DESIRED_REFACTORING_COUNT = 10
 
 Iteration_Result = namedtuple('Iteration_Result', ['better_metric', 'static_metric', 'worse_metric'])
 Statistics_Unit = namedtuple('Statistics_Unit', ['better_count', 'static_count', 'worse_count'])

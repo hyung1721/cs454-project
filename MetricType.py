@@ -9,7 +9,4 @@ class MetricType(str, Enum):
     PAPER = "Paper Suggestion"
     CBO = "CBO"
     RFC = "RFC"
-    FANIN = "FANIN"
-    FANOUT = "FANOUT"
-    CA = "CA"
     DIT = "DIT"

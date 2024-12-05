@@ -28,6 +28,14 @@ def get_coupling_metric_types():
     metric_types.append(MetricType.DIT)
     return metric_types
 
+def get_all_metric_types():
+    metric_types = []
+    for metric_Type in MetricType:
+        if(metric_Type == MetricType.PAPER):
+            continue
+        metric_types.append(metric_Type)
+    return metric_types
+
 def calculate_metrics(node_container_dict, metric_type_list):
     result = {}
     for metric_type in metric_type_list:
@@ -107,9 +115,9 @@ if __name__ == '__main__':
                 classes_origin.append((file_path, idx))
     
     # Metric Types 설정
-    metric_types = get_coupling_metric_types()
+    metric_types = get_all_metric_types()
     # refactoring 적용을 결정할 때 기준이 되는 type들
-    metric_types_for_refactoring_check = get_coupling_metric_types()
+    metric_types_for_refactoring_check = get_metric_types_in_paper()
     
     # Main Algorithm Start
     refactoring_count = 0
@@ -220,6 +228,8 @@ if __name__ == '__main__':
             for metric_type_another, statistic in statistics.items():
                 file.write(f"Disagreement Statistics: {metric_type.value} vs {metric_type_another}\n")
                 file.write(f"Agreement: {statistic[Agreement_Idx]}, Dissonant:: {statistic[Dissonant_Idx]}, Conflicted: {statistic[Conflicted_Idx]}\n")
+        
+        file.write(f"conflicted refactoring counts: {conflicted_refactoring_count}/{refactoring_count}\n")
     
     # Log 저장과정 
     # 저장 위치: log Folder
