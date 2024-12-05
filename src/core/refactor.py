@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from itertools import combinations
 from random import choice
 
-from src.core.parsing import NodeContainer
+from src.core.parsing import NodeContainer, refresh_inheritance_dict
 from src.utils.ast_utils import find_normal_methods, find_instance_fields, MethodRenamer, \
     create_super_init_call, find_self_dependencies, \
     update_field_references, update_descendant_chain, find_method_in_class, method_exists_in_class, \
@@ -64,6 +64,9 @@ class Refactor(ABC):
 
         if len(self.target_class_node.body) == 0:
             self.target_class_node.body.append(ast.Pass())
+
+        # DIT 계산을 위해 inheritance dict refresh
+        refresh_inheritance_dict(self.result)
 
     def __init__(self, base: dict[str, NodeContainer], location):
         self.base = base
