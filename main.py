@@ -132,7 +132,7 @@ if __name__ == '__main__':
     # Metric Types 설정
     metric_types = get_all_metric_types()
     # refactoring 적용을 결정할 때 기준이 되는 type들
-    metric_types_for_refactoring_check = get_coupling_metric_types()
+    metric_types_for_refactoring_check = get_metric_types_in_paper()
     
     # Main Algorithm Start
     refactoring_count = 0
@@ -230,8 +230,6 @@ if __name__ == '__main__':
                         if(try_count%100 == 0):
                             print(f"We tried {try_count} times and succeed {refactoring_count} times")
                             print(f"classes remains {len(classes)} and refactoring_methods remains {len(refactoring_methods)}")
-            # 새롭게 시작하는 부분 Data 구분 짓기
-            file.write("============================================================\n")
                 
     
         # Print Table3 in Paper
