@@ -150,7 +150,7 @@ if __name__ == '__main__':
             if(metric_type != metric_type_another):
                 disagreement_statistics[metric_type][metric_type_another] = [0, 0, 0]
 
-    log_path = Log_Save_Path(selected_library.value, DESIRED_REFACTORING_COUNT, "fix-ver2")
+    log_path = Log_Save_Path(selected_library.value, DESIRED_REFACTORING_COUNT, "fix-ver2-paper")
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
     with open(log_path, "w") as file:
         #Log File에 Metric 순서 적는 코드
