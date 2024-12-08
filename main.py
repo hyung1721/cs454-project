@@ -5,7 +5,7 @@ from typing import List, Dict
 from src.core.parsing import parse_library
 from src.core.refactor import REFACTORING_TYPES
 import constant
-from constant import Iteration_Result, Statistics_Unit, DESIRED_REFACTORING_COUNT
+from constant import Iteration_Result, Statistics_Unit, DESIRED_REFACTORING_COUNT, Library_Name
 from constant import Better_Idx, Static_Idx, Worse_Idx
 from constant import Agreement_Idx, Dissonant_Idx, Conflicted_Idx
 from evaluation import Evaluation
@@ -119,7 +119,7 @@ def check_conflicted_refactoring(iteration_result: Iteration_Result, improve_che
 # Main Function
 if __name__ == '__main__':
     # Target Library 설정 
-    selected_library = constant.SELECTED_LIBRARY
+    selected_library = Library_Name.ASCIIMatics
     node_container_dict = parse_library(constant.Target_Library_Path(selected_library))
     
     classes_origin = []

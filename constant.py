@@ -11,8 +11,6 @@ class Library_Name(str, Enum):
     Tweepy = "tweepy"
     Yaml = "yaml"
 
-SELECTED_LIBRARY = Library_Name.Arrow
-
 DESIRED_REFACTORING_COUNT = 1000
 
 Iteration_Result = namedtuple('Iteration_Result', ['better_metric', 'static_metric', 'worse_metric'])
