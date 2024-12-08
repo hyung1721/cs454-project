@@ -5,6 +5,11 @@ import os
 class LibraryName(str, Enum):
     ASCIIMatics = "asciimatics"
     Arrow = "arrow"
+    Yaml = "yaml"
+    Tweepy = "tweepy"
+    Sphinx = "sphinx"
+    Pygments = 'pygments'
+    Jinja2 = 'jinja2'
 
 SELECTED_LIBRARY = LibraryName.Arrow
 
