@@ -67,7 +67,7 @@ def compute_spearman_rank_correlation_coupling(library_name):
 
 def compute_coupling_correlation_all_library():
     for library in Library_Name:
-            compute_spearman_rank_correlation_coupling(library)
+        compute_spearman_rank_correlation_coupling(library)
 
 
 
