@@ -2,11 +2,16 @@ from collections import namedtuple
 from enum import Enum
 import os
 
-class LibraryName(str, Enum):
+class Library_Name(str, Enum):
     ASCIIMatics = "asciimatics"
     Arrow = "arrow"
+    Yaml = "yaml"
+    Tweepy = "tweepy"
+    Sphinx = "sphinx"
+    Pygments = 'pygments'
+    Jinja2 = 'jinja2'
 
-SELECTED_LIBRARY = LibraryName.Arrow
+SELECTED_LIBRARY = Library_Name.Arrow
 
 DESIRED_REFACTORING_COUNT = 1000
 
