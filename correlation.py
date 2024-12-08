@@ -12,9 +12,6 @@ def compute_spearman_rank_correlation(library_name: Library_Name, file_name):
         "SCOM": [],
         "CC": [],
         "LCOM5": [],
-        "CBO": [],
-        "RFC": [],
-        "DIT": []
     }
 
     # lines = list(set(lines))
@@ -28,9 +25,6 @@ def compute_spearman_rank_correlation(library_name: Library_Name, file_name):
             data["SCOM"].append(values[2])
             data["CC"].append(values[3])
             data["LCOM5"].append(values[4])
-            data["CBO"].append(values[5])
-            data["RFC"].append(values[6])
-            data["DIT"].append(values[7])
 
     # for datas in data:
     #     print(data[datas])
@@ -72,4 +66,4 @@ def compute_coupling_correlation_all_library():
 
 
 if __name__ == '__main__':
-    compute_coupling_correlation_all_library()
+    compute_spearman_rank_correlation(Library_Name.Tweepy, "tweepy_500.log.txt")

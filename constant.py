@@ -3,13 +3,13 @@ from enum import Enum
 import os
 
 class Library_Name(str, Enum):
-    ASCIIMatics = "asciimatics"
     Arrow = "arrow"
-    Yaml = "yaml"
-    Tweepy = "tweepy"
-    Sphinx = "sphinx"
-    Pygments = 'pygments'
+    ASCIIMatics = "asciimatics"
     Jinja2 = 'jinja2'
+    Pygments = 'pygments'
+    Sphinx = "sphinx"
+    Tweepy = "tweepy"
+    Yaml = "yaml"
 
 SELECTED_LIBRARY = Library_Name.Arrow
 
