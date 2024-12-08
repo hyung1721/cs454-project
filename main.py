@@ -131,8 +131,9 @@ if __name__ == '__main__':
     
     # Metric Types 설정
     metric_types = get_all_metric_types()
-    # refactoring 적용을 결정할 때 기준이 되는 type들
+    # refactoring 적용을 결정할 때 기준이 되는 type들 아래 둘 중 1택
     metric_types_for_refactoring_check = get_metric_types_in_paper()
+    # metric_types_for_refactoring_check = get_coupling_metric_types()
     
     # Main Algorithm Start
     refactoring_count = 0
