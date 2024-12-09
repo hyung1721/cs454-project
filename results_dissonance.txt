@@ -1,0 +1,34 @@
+log/arrow/arrow_1000_fix-ver2-paper.log.txt::Recorded data count: 15
+Agreement: 6220, Dissonant: 7020, Conflicted: 1760
+log/arrow/arrow_1000_fix-ver2.log.txt::Recorded data count: 15
+Agreement: 4103, Dissonant: 7978, Conflicted: 2919
+
+log/asciimatics/asciimatics_1000_fix-ver2.log.txt::Recorded data count: 15
+Agreement: 4662, Dissonant: 6062, Conflicted: 4276
+log/asciimatics/asciimatics_1000_fix-ver2-paper.log.txt::Recorded data count: 15
+Agreement: 3242, Dissonant: 8696, Conflicted: 3062
+
+log/jinja2/jinja2_1000_logging_all_not_checking_cohesion.log.txt::Recorded data count: 15
+Agreement: 4313, Dissonant: 7601, Conflicted: 3086
+log/jinja2/jinja2_1000_logging_all_not_checking_coupling.log.txt::Recorded data count: 15
+Agreement: 2307, Dissonant: 9739, Conflicted: 2954
+
+log/pygments/formatters_1000_logging_all_not_checking_cohesion.log.txt::Recorded data count: 15
+Agreement: 4236, Dissonant: 7252, Conflicted: 3512
+log/pygments/formatters_1000_logging_all_not_checking_coupling.log.txt::Recorded data count: 15
+Agreement: 5036, Dissonant: 9334, Conflicted: 630
+
+log/sphinx/builders_1000_logging_all_not_checking_cohesion.log.txt::Recorded data count: 15
+Agreement: 1621, Dissonant: 10011, Conflicted: 3368
+log/sphinx/builders_1000_logging_all_not_checking_coupling.log.txt::Recorded data count: 15
+Agreement: 5669, Dissonant: 6809, Conflicted: 2522
+
+log/yaml/yaml_1000_logging_all_not_checking_cohesion.log.txt::Recorded data count: 15
+Agreement: 4895, Dissonant: 7487, Conflicted: 2618
+log/yaml/yaml_1000_logging_all_not_checking_coupling.log.txt::Recorded data count: 15
+Agreement: 5791, Dissonant: 7985, Conflicted: 1224
+
+log/tweepy_1000_cohesion.log.txt::Recorded data count: 15
+Agreement: 3629, Dissonant: 8774, Conflicted: 2597
+log/tweepy_1000_coupling.log.txt::Recorded data count: 15
+Agreement: 4222, Dissonant: 6438, Conflicted: 4340
