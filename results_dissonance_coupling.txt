@@ -1,0 +1,74 @@
+log/arrow/arrow_1000_fix-ver2.log.txt::Recorded data count: 10
+Agreement: 5665, Dissonant: 3436, Conflicted: 899
+log/asciimatics/asciimatics_1000_fix-ver2.log.txt::Recorded data count: 10
+Agreement: 6986, Dissonant: 1432, Conflicted: 1582
+log/arrow/arrow_1000_fix-ver2.log.txt::Recorded data count: 10
+Agreement: 5665, Dissonant: 3436, Conflicted: 899
+log/asciimatics/asciimatics_1000_fix-ver2.log.txt::Recorded data count: 10
+Agreement: 6986, Dissonant: 1432, Conflicted: 1582
+log/jinja2/jinja2_1000_fix-ver2.log.txt::Recorded data count: 10
+Agreement: 5812, Dissonant: 778, Conflicted: 3410
+log/pygments/pygments_1000_fix-ver2.log.txt::Recorded data count: 10
+Agreement: 7300, Dissonant: 1004, Conflicted: 1696
+log/sphinx/sphinx_1000_fix-ver2.log.txt::Recorded data count: 10
+Agreement: 6918, Dissonant: 2112, Conflicted: 970
+log/tweepy/tweepy_1000_fix-ver2.log.txt::Recorded data count: 10
+Agreement: 4427, Dissonant: 2014, Conflicted: 3559
+log/yaml/yaml_1000_fix-ver2.log.txt::Recorded data count: 10
+Agreement: 5160, Dissonant: 3582, Conflicted: 1258
+log/arrow/arrow_1000_fix-ver2.log.txt::Recorded data count: 10
+Agreement: 5665, Dissonant: 3436, Conflicted: 899
+log/asciimatics/asciimatics_1000_fix-ver2.log.txt::Recorded data count: 10
+Agreement: 6986, Dissonant: 1432, Conflicted: 1582
+log/jinja2/jinja2_1000_fix-ver2.log.txt::Recorded data count: 10
+Agreement: 5812, Dissonant: 778, Conflicted: 3410
+log/pygments/pygments_1000_fix-ver2.log.txt::Recorded data count: 10
+Agreement: 7300, Dissonant: 1004, Conflicted: 1696
+log/sphinx/sphinx_1000_fix-ver2.log.txt::Recorded data count: 10
+Agreement: 6918, Dissonant: 2112, Conflicted: 970
+log/tweepy/tweepy_1000_fix-ver2.log.txt::Recorded data count: 10
+Agreement: 4427, Dissonant: 2014, Conflicted: 3559
+log/yaml/yaml_1000_fix-ver2.log.txt::Recorded data count: 10
+Agreement: 5160, Dissonant: 3582, Conflicted: 1258
+log/arrow/arrow_1000_fix-ver2.log.txt::Recorded data count: 3
+Agreement: 556, Dissonant: 1352, Conflicted: 1092
+log/asciimatics/asciimatics_1000_fix-ver2.log.txt::Recorded data count: 3
+Agreement: 306, Dissonant: 1596, Conflicted: 1098
+log/jinja2/jinja2_1000_fix-ver2.log.txt::Recorded data count: 3
+Agreement: 1252, Dissonant: 1526, Conflicted: 222
+log/pygments/pygments_1000_fix-ver2.log.txt::Recorded data count: 3
+Agreement: 576, Dissonant: 1272, Conflicted: 1152
+log/sphinx/sphinx_1000_fix-ver2.log.txt::Recorded data count: 3
+Agreement: 791, Dissonant: 944, Conflicted: 1265
+log/tweepy/tweepy_1000_fix-ver2.log.txt::Recorded data count: 3
+Agreement: 1337, Dissonant: 1134, Conflicted: 529
+log/yaml/yaml_1000_fix-ver2.log.txt::Recorded data count: 3
+Agreement: 1055, Dissonant: 1384, Conflicted: 561
+log/arrow/arrow_1000_fix-ver2.log.txt::Recorded data count: 15
+Agreement: 4103, Dissonant: 7978, Conflicted: 2919
+log/asciimatics/asciimatics_1000_fix-ver2.log.txt::Recorded data count: 15
+Agreement: 4662, Dissonant: 6062, Conflicted: 4276
+log/jinja2/jinja2_1000_fix-ver2.log.txt::Recorded data count: 15
+Agreement: 2307, Dissonant: 9739, Conflicted: 2954
+log/pygments/pygments_1000_fix-ver2.log.txt::Recorded data count: 15
+Agreement: 4236, Dissonant: 7252, Conflicted: 3512
+log/sphinx/sphinx_1000_fix-ver2.log.txt::Recorded data count: 15
+Agreement: 1621, Dissonant: 10011, Conflicted: 3368
+log/tweepy/tweepy_1000_fix-ver2.log.txt::Recorded data count: 15
+Agreement: 3629, Dissonant: 8774, Conflicted: 2597
+log/yaml/yaml_1000_fix-ver2.log.txt::Recorded data count: 15
+Agreement: 5791, Dissonant: 7985, Conflicted: 1224
+log/arrow/arrow_1000_fix-ver2.log.txt::Recorded data count: 15
+Agreement: 4103, Dissonant: 7978, Conflicted: 2919
+log/asciimatics/asciimatics_1000_fix-ver2.log.txt::Recorded data count: 15
+Agreement: 4662, Dissonant: 6062, Conflicted: 4276
+log/jinja2/jinja2_1000_fix-ver2.log.txt::Recorded data count: 15
+Agreement: 2307, Dissonant: 9739, Conflicted: 2954
+log/pygments/pygments_1000_fix-ver2.log.txt::Recorded data count: 15
+Agreement: 4236, Dissonant: 7252, Conflicted: 3512
+log/sphinx/sphinx_1000_fix-ver2.log.txt::Recorded data count: 15
+Agreement: 1621, Dissonant: 10011, Conflicted: 3368
+log/tweepy/tweepy_1000_fix-ver2.log.txt::Recorded data count: 15
+Agreement: 3629, Dissonant: 8774, Conflicted: 2597
+log/yaml/yaml_1000_fix-ver2.log.txt::Recorded data count: 15
+Agreement: 5791, Dissonant: 7985, Conflicted: 1224
