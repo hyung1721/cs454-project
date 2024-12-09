@@ -16,7 +16,7 @@ from src.utils.ast_utils import find_normal_methods, find_instance_fields, Metho
     delete_method_from_class, SelfOccurrenceReplacer, get_valid_bases
 
 
-class LocationInconsistencyError(Exception):
+class InvalidLocationException(Exception):
     ...
 
 
@@ -72,6 +72,9 @@ class Refactor(ABC):
         # DIT 계산을 위해 inheritance dict refresh
         refresh_inheritance_dict(self.result)
 
+    def __str__(self):
+        return self.__class__.__name__
+
     def __init__(self, base: dict[str, NodeContainer], location):
         self.base = base
         self.result = copy.deepcopy(base)
@@ -79,9 +82,15 @@ class Refactor(ABC):
         self.node_idx = location[1]
 
         self.target_node_container = self.result[self.file_path]
-        target_class_node = self.target_node_container.nodes[self.node_idx]
+
+        try:
+            target_class_node = self.target_node_container.nodes[self.node_idx]
+        except Exception as e:
+            raise InvalidLocationException(f"Cannot construct Refactor for {location}, with error: {e}")
+
         if not isinstance(target_class_node, ast.ClassDef):
-            raise LocationInconsistencyError(f"{target_class_node} is not an instance of ast.ClassDef, location: {location}")
+            raise InvalidLocationException(f"{target_class_node} is not an instance of ast.ClassDef, location: {location}")
+
         self.target_class_node = target_class_node
 
         self.__construct_subclasses()
