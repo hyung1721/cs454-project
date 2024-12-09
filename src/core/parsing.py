@@ -92,6 +92,15 @@ def parse_library(library_path):
     return container_dict
 
 
+def get_class_locations(node_container_dict: dict[str, NodeContainer]):
+    result = []
+    for file_path, node_container in node_container_dict.items():
+        for idx, node in enumerate(node_container.nodes):
+            if isinstance(node, ast.ClassDef):
+                result.append((file_path, idx))
+    return result
+
+
 if __name__ == '__main__':
     # src/target_library_zips 폴더에 있는 pyflakes.zip 파일을 src/target_libraries 경로에 압축 풀기
     # -> src/target_libraries/pyflakes 경로가 생기도록

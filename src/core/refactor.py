@@ -16,6 +16,10 @@ from src.utils.ast_utils import find_normal_methods, find_instance_fields, Metho
     delete_method_from_class, SelfOccurrenceReplacer, get_valid_bases
 
 
+class LocationInconsistencyError(Exception):
+    ...
+
+
 class Refactor(ABC):
     def __construct_subclasses(self):
         self.class_names = []
@@ -77,7 +81,7 @@ class Refactor(ABC):
         self.target_node_container = self.result[self.file_path]
         target_class_node = self.target_node_container.nodes[self.node_idx]
         if not isinstance(target_class_node, ast.ClassDef):
-            raise Exception(f"{target_class_node} is not an instance of ast.ClassDef")
+            raise LocationInconsistencyError(f"{target_class_node} is not an instance of ast.ClassDef, location: {location}")
         self.target_class_node = target_class_node
 
         self.__construct_subclasses()
@@ -295,7 +299,7 @@ class PushDownField(Refactor):
             field_name = field.targets[0].attr
             if not self.is_field_used_by_parent(field_name):
                 return True
-        print(f"All fields used by parent method")
+        # print(f"All fields used by parent method")
         return False
 
     def _do(self):
@@ -651,7 +655,7 @@ class ExtractHierarchy(Refactor):
                 best_features = (methods, fields)
 
         if not best_pair or best_score == 0:
-            print("No pair of classes have anything in common")
+            # print("No pair of classes have anything in common")
             return set(), [], [] 
 
         # Start group with best pair
@@ -1002,7 +1006,7 @@ class ReplaceInheritanceWithDelegation(Refactor):
 
         if superclass_node is None:
             self.undo()
-            print("Cannot find superclass '%s' since it may be in dependency" % superclass_name)
+            # print("Cannot find superclass '%s' since it may be in dependency" % superclass_name)
             return
 
         superclass_methods = [method.name for method in find_normal_methods(superclass_node.body)]
