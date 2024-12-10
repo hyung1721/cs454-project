@@ -1,6 +1,7 @@
 import ast
 import copy
 import os
+from datetime import datetime
 from random import choice, sample, randint, random
 from typing import Type
 
@@ -28,9 +29,9 @@ for file_path, node_container in original_node_container_dict.items():
 
 TARGET_METRICS = [
     (MetricType.LSCC, 1),
+    # (MetricType.LSCC, 1),
     # (MetricType.SCOM, 1),
-    # (MetricType.LCOM5, -1),
-    (MetricType.CBO, 1)
+    (MetricType.RFC, -1)
 ]
 
 INITIAL_METRIC_RESULT = calculate_metrics(
@@ -46,8 +47,11 @@ SERIES_SIZE = 20
 POPULATION_SIZE = 40
 K = 10
 MUTATION_RATE = 0.2
-MAX_GENS = 100
-REPEAT_FITNESS = 3
+MAX_GENS = 30
+REPEAT_FITNESS = 2
+
+LOG_FILE_NAME = f"{selected_library.value}_S{SERIES_SIZE}_P{POPULATION_SIZE}_G{MAX_GENS}"
+SUFFIX = "".join([f"{item[1]}{item[0]}"for item in TARGET_METRICS])
 
 
 def get_weighted_sum(result: dict[str, Evaluation]):
@@ -132,11 +136,11 @@ def mutate(c: Series, mutate_rate):
     return mutated_c
 
 
-def save_result(series: Series):
+def save_result(series: Series, last_gens: int, start_date: datetime):
     ga_log_dir = "log/ga"
     os.makedirs(ga_log_dir, exist_ok=True)
 
-    with open(os.path.join(ga_log_dir,f"{selected_library.value}_{SERIES_SIZE}_{POPULATION_SIZE}_{MAX_GENS}"), "w") as f:
+    with open(os.path.join(ga_log_dir, f"{LOG_FILE_NAME}_{SUFFIX}.txt"), "w") as f:
         # Metric
         f.write(f"Metrics: {', '.join([f'{str(item[1])} * {str(item[0])}' for item in TARGET_METRICS])}\n")
 
@@ -146,7 +150,11 @@ def save_result(series: Series):
         f.write(f"K: {K}\n")
         f.write(f"Mutation rate: {MUTATION_RATE}\n")
         f.write(f"Max generations: {MAX_GENS}\n")
+        f.write(f"Actual generations: {last_gens}\n")
         f.write(f"Repeat fitness: {REPEAT_FITNESS}\n")
+
+        f.write(f"Start date: {start_date}\n")
+        f.write(f"End date: {datetime.now()}\n")
 
         f.write("Series=================================================================================\n")
         for item in series:
@@ -162,40 +170,44 @@ if __name__ == '__main__':
     best_series = get_random_series()
     # save_result(best_series)
     population = [get_random_series() for _ in range(POPULATION_SIZE)]
-    gens = 1
+    gens = 0
 
-    while gens <= MAX_GENS:
-        nextgen_pop = []
+    start = datetime.now()
 
-        while len(nextgen_pop) < POPULATION_SIZE:
-            p1 = select(population, K)
-            p2 = select(population, K)
+    try:
+        while gens < MAX_GENS:
+            gens += 1
+            nextgen_pop = []
 
-            c1, c2 = crossover(p1, p2)
+            while len(nextgen_pop) < POPULATION_SIZE:
+                p1 = select(population, K)
+                p2 = select(population, K)
 
-            c1 = mutate(c1, MUTATION_RATE)
-            c2 = mutate(c2, MUTATION_RATE)
+                c1, c2 = crossover(p1, p2)
 
-            nextgen_pop.append(c1)
-            if len(nextgen_pop) < POPULATION_SIZE:
-                nextgen_pop.append(c2)
+                c1 = mutate(c1, MUTATION_RATE)
+                c2 = mutate(c2, MUTATION_RATE)
 
-        combined = population + nextgen_pop
-        population = sorted(combined, key=lambda series: fitness(series), reverse=True)[:POPULATION_SIZE]
+                nextgen_pop.append(c1)
+                if len(nextgen_pop) < POPULATION_SIZE:
+                    nextgen_pop.append(c2)
 
-        if fitness(population[0]) > fitness(best_series):
-            best_series = population[0]
-            print("Generation " + str(gens) + ", best series: ", best_series)
-            print("fitness: ", fitness(best_series))
-        else:
-            print("Generation " + str(gens))
+            combined = population + nextgen_pop
+            population = sorted(combined, key=lambda series: fitness(series), reverse=True)[:POPULATION_SIZE]
 
-        print(f"fitness cache hit: {CACHE_HIT}, miss: {CACHE_MISS} for Generation {gens}.")
-        CACHE_HIT = 0
-        CACHE_MISS = 0
+            if fitness(population[0]) > fitness(best_series):
+                best_series = population[0]
+                print("Generation " + str(gens) + ", best series: ", best_series)
+                print("fitness: ", fitness(best_series))
+            else:
+                print("Generation " + str(gens))
 
-        gens += 1
+            print(f"fitness cache hit: {CACHE_HIT}, miss: {CACHE_MISS} for Generation {gens}.")
+            CACHE_HIT = 0
+            CACHE_MISS = 0
+    # except KeyboardInterrupt:
+    #     print("suspended")
+    finally:
+        print(best_series, fitness(best_series))
 
-    print(best_series, fitness(best_series))
-
-    save_result(best_series)
+        save_result(best_series, last_gens = gens, start_date=start)

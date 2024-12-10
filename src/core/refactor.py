@@ -72,9 +72,6 @@ class Refactor(ABC):
         # DIT 계산을 위해 inheritance dict refresh
         refresh_inheritance_dict(self.result)
 
-    def __str__(self):
-        return self.__class__.__name__
-
     def __init__(self, base: dict[str, NodeContainer], location):
         self.base = base
         self.result = copy.deepcopy(base)
