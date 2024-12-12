@@ -1,0 +1,34 @@
+Metrics: 1 * MetricType.CC
+Series size: 20
+Population size: 40
+K: 10
+Mutation rate: 0.2
+Max generations: 50
+Actual generations: 50
+Repeat fitness: 1
+Start date: 2024-12-10 18:40:13.185908
+End date: 2024-12-10 22:48:23.885389
+Series=================================================================================
+(<class 'src.core.refactor.MakeSuperclassAbstract'>, ('refactoring/target_libraries/jinja2/nodes.py', 52))
+(<class 'src.core.refactor.MakeSuperclassConcrete'>, ('refactoring/target_libraries/jinja2/nodes.py', 67))
+(<class 'src.core.refactor.PullUpMethod'>, ('refactoring/target_libraries/jinja2/compiler.py', 26))
+(<class 'src.core.refactor.ReplaceDelegationWithInheritance'>, ('refactoring/target_libraries/jinja2/loaders.py', 16))
+(<class 'src.core.refactor.ReplaceInheritanceWithDelegation'>, ('refactoring/target_libraries/jinja2/compiler.py', 26))
+(<class 'src.core.refactor.MakeSuperclassAbstract'>, ('refactoring/target_libraries/jinja2/nodes.py', 48))
+(<class 'src.core.refactor.IncreaseMethodAccess'>, ('refactoring/target_libraries/jinja2/nodes.py', 14))
+(<class 'src.core.refactor.MakeSuperclassAbstract'>, ('refactoring/target_libraries/jinja2/ext.py', 14))
+(<class 'src.core.refactor.PullUpMethod'>, ('refactoring/target_libraries/jinja2/nodes.py', 11))
+(<class 'src.core.refactor.IncreaseFieldAccess'>, ('refactoring/target_libraries/jinja2/ext.py', 14))
+(<class 'src.core.refactor.CollapseHierarchy'>, ('refactoring/target_libraries/jinja2/meta.py', 4))
+(<class 'src.core.refactor.PullUpMethod'>, ('refactoring/target_libraries/jinja2/compiler.py', 26))
+(<class 'src.core.refactor.PullUpMethod'>, ('refactoring/target_libraries/jinja2/nodes.py', 34))
+(<class 'src.core.refactor.DecreaseMethodAccess'>, ('refactoring/target_libraries/jinja2/runtime.py', 27))
+(<class 'src.core.refactor.MakeSuperclassAbstract'>, ('refactoring/target_libraries/jinja2/nodes.py', 49))
+(<class 'src.core.refactor.DecreaseMethodAccess'>, ('refactoring/target_libraries/jinja2/nodes.py', 51))
+(<class 'src.core.refactor.IncreaseFieldAccess'>, ('refactoring/target_libraries/jinja2/nodes.py', 18))
+(<class 'src.core.refactor.IncreaseFieldAccess'>, ('refactoring/target_libraries/jinja2/nodes.py', 58))
+(<class 'src.core.refactor.IncreaseMethodAccess'>, ('refactoring/target_libraries/jinja2/nodes.py', 34))
+(<class 'src.core.refactor.PullUpMethod'>, ('refactoring/target_libraries/jinja2/nodes.py', 63))
+=======================================================================================
+Before Refactoring: 0.1515381260011565
+After Refactoring: 0.2925056326276144
