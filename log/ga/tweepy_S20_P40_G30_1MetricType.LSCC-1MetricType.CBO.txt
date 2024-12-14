@@ -1,0 +1,34 @@
+Metrics: 1 * MetricType.LSCC, -1 * MetricType.CBO
+Series size: 20
+Population size: 40
+K: 10
+Mutation rate: 0.2
+Max generations: 30
+Actual generations: 23
+Repeat fitness: 2
+Start date: 2024-12-14 17:39:29.575611
+End date: 2024-12-14 21:01:35.937800
+Series=================================================================================
+(<class 'src.core.refactor.ReplaceInheritanceWithDelegation'>, ('refactoring\\target_libraries\\tweepy/cache.py', 11))
+(<class 'src.core.refactor.MakeSuperclassAbstract'>, ('refactoring\\target_libraries\\tweepy/client.py', 19))
+(<class 'src.core.refactor.ExtractHierarchy'>, ('refactoring\\target_libraries\\tweepy/errors.py', 2))
+(<class 'src.core.refactor.IncreaseMethodAccess'>, ('refactoring\\target_libraries\\tweepy/client.py', 19))
+(<class 'src.core.refactor.ExtractHierarchy'>, ('refactoring\\target_libraries\\tweepy/models.py', 2))
+(<class 'src.core.refactor.ExtractHierarchy'>, ('refactoring\\target_libraries\\tweepy/mixins.py', 3))
+(<class 'src.core.refactor.ExtractHierarchy'>, ('refactoring\\target_libraries\\tweepy\\asynchronous/pagination.py', 3))
+(<class 'src.core.refactor.ReplaceInheritanceWithDelegation'>, ('refactoring\\target_libraries\\tweepy/mixins.py', 1))
+(<class 'src.core.refactor.ExtractHierarchy'>, ('refactoring\\target_libraries\\tweepy/errors.py', 3))
+(<class 'src.core.refactor.MakeSuperclassConcrete'>, ('refactoring\\target_libraries\\tweepy/errors.py', 2))
+(<class 'src.core.refactor.ExtractHierarchy'>, ('refactoring\\target_libraries\\tweepy/errors.py', 4))
+(<class 'src.core.refactor.IncreaseFieldAccess'>, ('refactoring\\target_libraries\\tweepy/parsers.py', 5))
+(<class 'src.core.refactor.PullUpMethod'>, ('refactoring\\target_libraries\\tweepy/streaming.py', 18))
+(<class 'src.core.refactor.PullUpMethod'>, ('refactoring\\target_libraries\\tweepy\\asynchronous/client.py', 17))
+(<class 'src.core.refactor.ExtractHierarchy'>, ('refactoring\\target_libraries\\tweepy/cursor.py', 4))
+(<class 'src.core.refactor.ExtractHierarchy'>, ('refactoring\\target_libraries\\tweepy/client.py', 18))
+(<class 'src.core.refactor.PullUpField'>, ('refactoring\\target_libraries\\tweepy/cursor.py', 10))
+(<class 'src.core.refactor.PushDownMethod'>, ('refactoring\\target_libraries\\tweepy/poll.py', 2))
+(<class 'src.core.refactor.ExtractHierarchy'>, ('refactoring\\target_libraries\\tweepy/parsers.py', 3))
+(<class 'src.core.refactor.ReplaceInheritanceWithDelegation'>, ('refactoring\\target_libraries\\tweepy/cursor.py', 8))
+=======================================================================================
+Before Refactoring: -1.8753312949135403
+After Refactoring: -1.6799494023191166
