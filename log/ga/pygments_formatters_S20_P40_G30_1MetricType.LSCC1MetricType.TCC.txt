@@ -1,0 +1,34 @@
+Metrics: 1 * MetricType.LSCC, 1 * MetricType.TCC
+Series size: 20
+Population size: 40
+K: 10
+Mutation rate: 0.2
+Max generations: 30
+Actual generations: 30
+Repeat fitness: 2
+Start date: 2024-12-16 00:31:37.534348
+End date: 2024-12-16 01:46:05.441861
+Series=================================================================================
+(<class 'src.core.refactor.ReplaceInheritanceWithDelegation'>, ('refactoring/target_libraries/pygments/formatters/img.py', 10))
+(<class 'src.core.refactor.DecreaseMethodAccess'>, ('refactoring/target_libraries/pygments/formatters/img.py', 6))
+(<class 'src.core.refactor.MakeSuperclassAbstract'>, ('refactoring/target_libraries/pygments/formatters/img.py', 10))
+(<class 'src.core.refactor.IncreaseMethodAccess'>, ('refactoring/target_libraries/pygments/formatters/other.py', 5))
+(<class 'src.core.refactor.IncreaseMethodAccess'>, ('refactoring/target_libraries/pygments/formatters/img.py', 9))
+(<class 'src.core.refactor.CollapseHierarchy'>, ('refactoring/target_libraries/pygments/formatters/img.py', 10))
+(<class 'src.core.refactor.PushDownMethod'>, ('refactoring/target_libraries/pygments/formatters/terminal.py', 4))
+(<class 'src.core.refactor.ReplaceInheritanceWithDelegation'>, ('refactoring/target_libraries/pygments/formatters/img.py', 11))
+(<class 'src.core.refactor.PushDownField'>, ('refactoring/target_libraries/pygments/formatters/svg.py', 3))
+(<class 'src.core.refactor.MakeSuperclassConcrete'>, ('refactoring/target_libraries/pygments/formatters/latex.py', 5))
+(<class 'src.core.refactor.PullUpMethod'>, ('refactoring/target_libraries/pygments/formatters/html.py', 8))
+(<class 'src.core.refactor.ReplaceInheritanceWithDelegation'>, ('refactoring/target_libraries/pygments/formatters/img.py', 9))
+(<class 'src.core.refactor.IncreaseFieldAccess'>, ('refactoring/target_libraries/pygments/formatters/pangomarkup.py', 1))
+(<class 'src.core.refactor.IncreaseFieldAccess'>, ('refactoring/target_libraries/pygments/formatters/img.py', 6))
+(<class 'src.core.refactor.ReplaceInheritanceWithDelegation'>, ('refactoring/target_libraries/pygments/formatters/terminal256.py', 5))
+(<class 'src.core.refactor.CollapseHierarchy'>, ('refactoring/target_libraries/pygments/formatters/terminal256.py', 3))
+(<class 'src.core.refactor.PushDownMethod'>, ('refactoring/target_libraries/pygments/formatters/terminal256.py', 4))
+(<class 'src.core.refactor.CollapseHierarchy'>, ('refactoring/target_libraries/pygments/formatters/irc.py', 3))
+(<class 'src.core.refactor.DecreaseMethodAccess'>, ('refactoring/target_libraries/pygments/formatters/groff.py', 3))
+(<class 'src.core.refactor.PushDownField'>, ('refactoring/target_libraries/pygments/formatters/latex.py', 5))
+=======================================================================================
+Before Refactoring: 0.2649659325160621
+After Refactoring: 0.2653029554768979

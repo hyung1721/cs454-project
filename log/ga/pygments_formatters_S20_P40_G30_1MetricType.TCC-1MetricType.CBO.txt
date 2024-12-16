@@ -1,0 +1,34 @@
+Metrics: 1 * MetricType.TCC, -1 * MetricType.CBO
+Series size: 20
+Population size: 40
+K: 10
+Mutation rate: 0.2
+Max generations: 30
+Actual generations: 30
+Repeat fitness: 2
+Start date: 2024-12-15 20:06:51.104577
+End date: 2024-12-15 22:12:11.133455
+Series=================================================================================
+(<class 'src.core.refactor.CollapseHierarchy'>, ('refactoring/target_libraries/pygments/formatters/img.py', 8))
+(<class 'src.core.refactor.DecreaseFieldAccess'>, ('refactoring/target_libraries/pygments/formatters/groff.py', 3))
+(<class 'src.core.refactor.DecreaseMethodAccess'>, ('refactoring/target_libraries/pygments/formatters/img.py', 9))
+(<class 'src.core.refactor.ExtractHierarchy'>, ('refactoring/target_libraries/pygments/formatters/img.py', 8))
+(<class 'src.core.refactor.MakeSuperclassAbstract'>, ('refactoring/target_libraries/pygments/formatters/img.py', 10))
+(<class 'src.core.refactor.PushDownField'>, ('refactoring/target_libraries/pygments/formatters/html.py', 8))
+(<class 'src.core.refactor.ExtractHierarchy'>, ('refactoring/target_libraries/pygments/formatters/terminal256.py', 5))
+(<class 'src.core.refactor.MakeSuperclassConcrete'>, ('refactoring/target_libraries/pygments/formatters/img.py', 10))
+(<class 'src.core.refactor.PullUpField'>, ('refactoring/target_libraries/pygments/formatters/other.py', 4))
+(<class 'src.core.refactor.DecreaseMethodAccess'>, ('refactoring/target_libraries/pygments/formatters/img.py', 6))
+(<class 'src.core.refactor.MakeSuperclassAbstract'>, ('refactoring/target_libraries/pygments/formatters/latex.py', 5))
+(<class 'src.core.refactor.MakeSuperclassConcrete'>, ('refactoring/target_libraries/pygments/formatters/groff.py', 3))
+(<class 'src.core.refactor.PullUpMethod'>, ('refactoring/target_libraries/pygments/formatters/terminal256.py', 5))
+(<class 'src.core.refactor.PushDownMethod'>, ('refactoring/target_libraries/pygments/formatters/svg.py', 3))
+(<class 'src.core.refactor.ExtractHierarchy'>, ('refactoring/target_libraries/pygments/formatters/img.py', 9))
+(<class 'src.core.refactor.CollapseHierarchy'>, ('refactoring/target_libraries/pygments/formatters/html.py', 8))
+(<class 'src.core.refactor.CollapseHierarchy'>, ('refactoring/target_libraries/pygments/formatters/latex.py', 6))
+(<class 'src.core.refactor.MakeSuperclassConcrete'>, ('refactoring/target_libraries/pygments/formatters/bbcode.py', 2))
+(<class 'src.core.refactor.ReplaceInheritanceWithDelegation'>, ('refactoring/target_libraries/pygments/formatters/terminal256.py', 5))
+(<class 'src.core.refactor.DecreaseFieldAccess'>, ('refactoring/target_libraries/pygments/formatters/irc.py', 3))
+=======================================================================================
+Before Refactoring: -4.831142568250758
+After Refactoring: -4.385602165087956
