@@ -13,7 +13,7 @@ from main import calculate_metrics
 from src.core.parsing import parse_library
 from src.core.refactor import REFACTORING_TYPES, Refactor, InvalidLocationException
 
-selected_library = Library_Name.Jinja2
+selected_library = Library_Name.Arrow
 
 original_node_container_dict = parse_library(constant.Target_Library_Path(selected_library))
 
@@ -30,8 +30,8 @@ for file_path, node_container in original_node_container_dict.items():
 TARGET_METRICS = [
     (MetricType.LSCC, 1),
     # (MetricType.LSCC, 1),
-    # (MetricType.SCOM, 1),
-    (MetricType.RFC, -1)
+    (MetricType.TCC, 1),
+    # (MetricType.RFC, -1)
 ]
 
 INITIAL_METRIC_RESULT = calculate_metrics(
@@ -51,7 +51,7 @@ MAX_GENS = 30
 REPEAT_FITNESS = 2
 
 LOG_FILE_NAME = f"{selected_library.value}_S{SERIES_SIZE}_P{POPULATION_SIZE}_G{MAX_GENS}"
-SUFFIX = "".join([f"{item[1]}{item[0]}"for item in TARGET_METRICS])
+SUFFIX = "".join([f"{item[1]}{item[0].value}"for item in TARGET_METRICS])
 
 
 def get_weighted_sum(result: dict[str, Evaluation]):
