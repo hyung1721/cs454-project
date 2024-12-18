@@ -1,0 +1,78 @@
+tweepy_S20_P40_G30_1MetricType.TCC-1MetricType.LCOM5.txt
+[('ReplaceInheritanceWithDelegation', 7), ('PullUpMethod', 4), ('ExtractHierarchy', 3), ('ReplaceDelegationWithInheritance', 3)]
+
+tweepy_S20_P40_G30_1MetricType.LSCC-1MetricType.LCOM5.txt
+[('ReplaceInheritanceWithDelegation', 7), ('ExtractHierarchy', 3), ('CollapseHierarchy', 2), ('MakeSuperclassConcrete', 2)]
+
+pygments_formatters_S20_P40_G30_-1MetricType.RFC1MetricType.TCC.txt
+[('ExtractHierarchy', 4), ('MakeSuperclassConcrete', 2), ('PushDownMethod', 2), ('DecreaseFieldAccess', 2)]
+
+tweepy_S20_P40_G30_1MetricType.TCC-1MetricType.RFC.txt
+[('ExtractHierarchy', 7), ('PushDownMethod', 2), ('DecreaseMethodAccess', 2), ('ReplaceInheritanceWithDelegation', 2)]
+
+jinja2_S20_P40_G30_1TCC-1LCOM5.txt
+[('ReplaceInheritanceWithDelegation', 4), ('MakeSuperclassAbstract', 3), ('IncreaseMethodAccess', 2), ('IncreaseFieldAccess', 2)]
+
+pygments_formatters_S20_P40_G30_1MetricType.LSCC-1MetricType.LCOM5.txt
+[('ReplaceInheritanceWithDelegation', 5), ('MakeSuperclassAbstract', 2), ('MakeSuperclassConcrete', 2), ('PushDownMethod', 2)]
+
+jinja2_S20_P40_G30_1LSCC-1CBO.txt
+[('ExtractHierarchy', 10), ('PushDownField', 2), ('CollapseHierarchy', 2), ('PullUpMethod', 2)]
+
+pygments_formatters_S20_P40_G30_1MetricType.LSCC-1MetricType.CBO.txt
+[('ExtractHierarchy', 4), ('MakeSuperclassAbstract', 3), ('PushDownField', 3), ('PullUpField', 2)]
+
+tweepy_S20_P40_G30_1MetricType.LSCC-1MetricType.RFC.txt
+[('ExtractHierarchy', 8), ('MakeSuperclassConcrete', 4), ('ReplaceInheritanceWithDelegation', 3), ('PullUpMethod', 2)]
+
+jinja2_S20_P40_G50_1TCC-1CBO.txt
+[('ExtractHierarchy', 6), ('PushDownMethod', 3), ('ReplaceInheritanceWithDelegation', 2), ('IncreaseMethodAccess', 2)]
+
+pygments_formatters_S20_P40_G30_1MetricType.TCC-1MetricType.CBO.txt
+[('CollapseHierarchy', 3), ('ExtractHierarchy', 3), ('MakeSuperclassConcrete', 3), ('DecreaseFieldAccess', 2)]
+
+pygments_formatters_S20_P40_G30_1MetricType.LSCC1MetricType.TCC.txt
+[('ReplaceInheritanceWithDelegation', 4), ('CollapseHierarchy', 3), ('DecreaseMethodAccess', 2), ('IncreaseMethodAccess', 2)]
+
+tweepy_S20_P40_G30_1MetricType.TCC-1MetricType.CBO.txt
+[('ExtractHierarchy', 8), ('PushDownField', 4), ('ReplaceInheritanceWithDelegation', 2), ('DecreaseFieldAccess', 2)]
+
+jinja2_S20_P40_G30_1TCC.txt
+[('ReplaceInheritanceWithDelegation', 4), ('PullUpField', 2), ('IncreaseFieldAccess', 2), ('IncreaseMethodAccess', 2)]
+
+jinja2_S20_P40_G30_1CC-1LCOM5.txt
+[('ReplaceInheritanceWithDelegation', 9), ('DecreaseMethodAccess', 2), ('PushDownField', 2), ('PullUpField', 1)]
+
+pygments_formatters_S20_P40_G30_1MetricType.TCC-1MetricType.LCOM5.txt
+[('ReplaceInheritanceWithDelegation', 4), ('IncreaseMethodAccess', 3), ('IncreaseFieldAccess', 2), ('DecreaseFieldAccess', 2)]
+
+jinja2_S20_P40_G50_1TCC-1RFC.txt
+[('ExtractHierarchy', 10), ('IncreaseFieldAccess', 2), ('ReplaceInheritanceWithDelegation', 1), ('DecreaseFieldAccess', 1)]
+
+jinja2_S20_P40_G30_1LSCC-1LCOM5.txt
+[('ReplaceInheritanceWithDelegation', 9), ('PullUpMethod', 2), ('CollapseHierarchy', 2), ('MakeSuperclassConcrete', 2)]
+
+pygments_formatters_S20_P40_G30_1MetricType.LSCC-1MetricType.RFC.txt
+[('PullUpMethod', 5), ('DecreaseFieldAccess', 3), ('PushDownMethod', 3), ('ReplaceInheritanceWithDelegation', 2)]
+
+jinja2_S20_P40_G30_1LSCC-1RFC.txt
+[('ExtractHierarchy', 9), ('MakeSuperclassAbstract', 3), ('ReplaceInheritanceWithDelegation', 2), ('PullUpMethod', 2)]
+
+jinja2_S20_P40_G50_1CC.txt
+[('PullUpMethod', 5), ('MakeSuperclassAbstract', 4), ('IncreaseFieldAccess', 3), ('IncreaseMethodAccess', 2)]
+
+arrow_S20_P40_G30_1MetricType.LSCC-1MetricType.RFC.txt
+[('ExtractHierarchy', 7), ('PullUpField', 3), ('MakeSuperclassAbstract', 2), ('IncreaseMethodAccess', 2)]
+
+tweepy_S20_P40_G30_1MetricType.LSCC-1MetricType.CBO.txt
+[('ExtractHierarchy', 8), ('PullUpMethod', 2), ('ReplaceInheritanceWithDelegation', 2), ('CollapseHierarchy', 2)]
+
+jinja2_S20_P40_G30_1SCOM-1LCOM5.txt
+[('ReplaceInheritanceWithDelegation', 9), ('CollapseHierarchy', 3), ('ExtractHierarchy', 2), ('IncreaseFieldAccess', 2)]
+
+arrow_S20_P40_G30_1LSCC1TCC.txt
+[('ReplaceDelegationWithInheritance', 4), ('PushDownField', 3), ('ReplaceInheritanceWithDelegation', 3), ('CollapseHierarchy', 3)]
+
+jinja2_S20_P40_G30_1LSCC.txt
+[('ReplaceInheritanceWithDelegation', 7), ('CollapseHierarchy', 4), ('PullUpMethod', 3), ('PullUpField', 2)]
+
