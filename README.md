@@ -21,4 +21,4 @@ This project replicates the pipeline from [an existing research paper](https://d
 
 
 ### Results
-You may check some results of our research in `/logs`
+You may check some results of our research in `/log`.
